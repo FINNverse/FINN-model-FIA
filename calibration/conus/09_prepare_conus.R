@@ -1,17 +1,15 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
-## FINN-model-FIA | calibration/conus/01_prepare.R   (variant "conus")
+## FINN-model-FIA | calibration/conus/09_prepare_conus.R   (variant "conus", step 9 of 9)
 ##
-## WHAT   Turns the prepared FIA set `annual-v5` of the FINN-fia analysis
-##        pipeline (conterminous US, 20 species, annual time step, per-site
-##        remeasurement intervals, spatially blocked train / holdout) into the
-##        prepared set of this variant: `conus-annual-v1`. Nothing is
-##        re-selected here; the script re-shapes, drops what the model does
-##        not use, checks the invariants FINN relies on and writes the summary
-##        a rerun is diffed against.
-## WHY    annual-v5 is the data of the FINN-fia FIA fits (2026-09). Its
-##        preparation (FINN-fia `scripts/01..07`) needs the full FIADB dump,
-##        yearly TerraClimate rasters and the FINN-fia code, and is not repeated
-##        here; see calibration/PROVENANCE.md. What changes for the tool:
+## WHAT   Turns the prepared set `annual-v5` written by step 8 (conterminous
+##        US, 20 species, annual time step, per-site remeasurement intervals,
+##        spatially blocked train / holdout) into the prepared set of this
+##        variant: `conus-annual-v1`. Nothing is re-selected here; the script
+##        re-shapes, drops what the model does not use, checks the invariants
+##        FINN relies on and writes the summary a rerun is diffed against.
+## WHY    annual-v5 is the data of the FINN-fia FIA fits (2026-09); steps 1-8
+##        of this folder rebuild it from the public sources (PROVENANCE.md).
+##        What changes for the tool:
 ##        - the environment is written in NATURAL units (the FINN-fia fits used
 ##          the pre-standardised `env_dt.csv`); FINN standardises internally
 ##          (`env_autoscale`) and stores the constants with the model, so users
@@ -20,10 +18,8 @@
 ##          fits had them as network inputs and predicted the holdout with them
 ##          held at the training mean; for a tool a pure climate model is
 ##          simpler to apply and to transfer). They stay in siteID_dt.csv for maps.
-## INPUT  <DATA_DIR>/prepared/annual-v5/{train1500,holdout_blocked}/  (copied from FINN-fia
-##        outputs/prepared/annual-v5, written 2026-09-10 by scripts/07_prepare_finn_inputs.R
-##        at FINN-fia commit 58fcf3e), plus site_blocks.csv, holdout_separation.csv,
-##        PREPARATION_finn-fia.md in <DATA_DIR>/prepared/annual-v5/.
+## INPUT  <DATA_DIR>/prepared/annual-v5/{train1500,holdout_blocked}/ (step 8), plus
+##        site_blocks.csv, holdout_separation.csv and PREPARATION.md in <DATA_DIR>/prepared/annual-v5/.
 ## OUTPUT <DATA_DIR>/prepared/conus-annual-v1/{train,holdout}/
 ##          obs_dt.csv          site x census x species (year = simulated year of the census,
 ##                              period_length = years since the previous census): ba, dbh,
@@ -38,7 +34,7 @@
 ##          species_dt.csv, siteID_dt.csv (siteID <-> FIA plot id, lon, lat), site_calendar.csv
 ##        <DATA_DIR>/prepared/conus-annual-v1/PREPARATION.md, site_blocks.csv, holdout_separation.csv
 ##        calibration/conus/expected_preparation.csv
-## RUN    Rscript calibration/conus/01_prepare.R      (from the repository root, ~20 s)
+## RUN    Rscript calibration/conus/09_prepare_conus.R      (from the repository root, ~20 s)
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
 .libPaths(c("~/R/lib-finn-0848b60", .libPaths()))
 suppressPackageStartupMessages({
@@ -141,13 +137,13 @@ sep <- fread(file.path(SRC, "holdout_separation.csv"))
 
 writeLines(c(
   sprintf("# Prepared data: %s", PARAMS$prep_version), "",
-  sprintf("Written %s by `calibration/conus/01_prepare.R` (FINN %s) from the FINN-fia prepared set `%s`.",
+  sprintf("Written %s by `calibration/conus/09_prepare_conus.R` (FINN %s) from the prepared set `%s` of step 8.",
           format(Sys.time(), "%Y-%m-%d %H:%M"), as.character(packageVersion("FINN")), PARAMS$source_version), "",
   "## Source", "",
-  "- FINN-fia `outputs/prepared/annual-v5` (train1500, holdout_blocked), written 2026-09-10 by",
-  "  `scripts/07_prepare_finn_inputs.R` at FINN-fia commit 58fcf3e, from the FIADB CSV dump (USDA Forest Service FIA DataMart,",
-  "  public domain / CC0, dump of June 2025), WorldClim 2.1 and yearly TerraClimate (1958-2023) summaries per plot.",
-  "  The FINN-fia PREPARATION.md is appended below.",
+  "- `prepared/annual-v5` (train1500, holdout_blocked), written by `calibration/conus/08_prepare_annual_v5.R`, the port of",
+  "  FINN-fia `scripts/07_prepare_finn_inputs.R` (commit 58fcf3e, 2026-09-10), from the FIADB CSV dump (USDA Forest Service FIA",
+  "  DataMart, public domain / CC0, dump of June 2025), WorldClim 2.1 and yearly TerraClimate (1958-2023) summaries per plot",
+  "  (calibration/conus steps 1-8, calibration/PROVENANCE.md). The PREPARATION.md of annual-v5 is appended below.",
   "- Cohort: FIA plots with >= 2 inventories, all four subplots consistently sampled, condition-level management tier",
   "  M0/M1, the 20 species of the FINN-fia species ranking jointly >= 99 % of the plot's basal area at the first",
   "  inventory (plots dominated by other species are excluded; the 20 species are therefore modelled without an",
@@ -171,7 +167,7 @@ writeLines(c(
   sprintf("Distance from each holdout site to the nearest training site: median %.0f km, minimum %.0f km, 10 %% below %.0f km.",
           median(sep$nearest_train_km), min(sep$nearest_train_km), quantile(sep$nearest_train_km, 0.1)), "",
   "## PARAMS", "", "```r", capture.output(str(PARAMS)), "```", "",
-  "---", "", "# Appendix: FINN-fia PREPARATION.md of annual-v5", "",
-  readLines(file.path(SRC, "PREPARATION_finn-fia.md"))
+  "---", "", "# Appendix: PREPARATION.md of annual-v5 (step 8)", "",
+  readLines(file.path(SRC, "PREPARATION.md"))
 ), file.path(OUT, "PREPARATION.md"))
 message("done: ", OUT)

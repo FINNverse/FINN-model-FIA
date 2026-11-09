@@ -134,8 +134,12 @@ loss_hist[, epoch := .I]
 fwrite(loss_hist, file.path(FIT_DIR, "loss_history.csv"))
 fwrite(loss_hist, file.path(CAL_DIR, "loss_history.csv"))
 fwrite(as.data.table(model$env_scaling), file.path(CAL_DIR, "env_scaling.csv"))
+## both files are release assets: the name-matched parameter list (what the
+## package rebuilds from) and the whole model object (torch_load() under the
+## same FINN version restores it directly)
 sha <- digest::digest(file = file.path(FIT_DIR, "parameters.pt"), algo = "sha256")
 writeLines(sha, file.path(CAL_DIR, "parameters_sha256.txt"))
+writeLines(digest::digest(file = file.path(FIT_DIR, "model.pt"), algo = "sha256"), file.path(CAL_DIR, "model_sha256.txt"))
 
 ## ---- 5. the package must rebuild exactly this model from the list ----------
 ## R/definition.R is the user-facing copy of section 2; if the two drift apart

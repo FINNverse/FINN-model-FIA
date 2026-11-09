@@ -66,12 +66,20 @@ load_model = function(variant = NULL, path = NULL) {
 #' @param init_cohort Initial cohorts from [FINN::makeInitCohorts()]; `NULL`
 #'   starts from bare ground.
 #' @param variant Model variant, see [model_info()].
+#' @param batchsize Sites per simulation batch; the default is the value pinned
+#'   in the release (`model_info()[[variant]]$sim_batchsize`). The stochastic
+#'   draws depend on it, so keep it fixed when results are compared.
+#' @param threads torch CPU threads; the default is the release's pinned value
+#'   (1, the setting the models were fitted and validated with).
 #' @param ... Further arguments for [FINN::simulateForest()].
 #' @export
-simulate_model = function(env, init_cohort = NULL, variant = NULL, ...) {
+simulate_model = function(env, init_cohort = NULL, variant = NULL, batchsize = NULL, threads = NULL, ...) {
   info = model_info()
   if (is.null(variant)) variant = names(info)[1]
   v = info[[variant]]
-  args = utils::modifyList(list(patches = v$patches, patch_size = v$patch_size), list(...))
+  if (is.null(batchsize)) batchsize = v$sim_batchsize
+  if (is.null(threads)) threads = v$threads
+  if (!is.null(threads)) torch::torch_set_num_threads(as.integer(threads))
+  args = utils::modifyList(list(patches = v$patches, patch_size = v$patch_size, batchsize = batchsize), list(...))
   do.call(FINN::simulateForest, c(list(load_model(variant), env = env, init_cohort = init_cohort), args))
 }

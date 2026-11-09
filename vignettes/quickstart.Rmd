@@ -23,7 +23,13 @@ models calibrated to the US Forest Inventory and Analysis (FIA) network:
 The model card with data, validation and limitations is in the
 [FINN-zoo](https://finnverse.github.io/FINN-zoo/models.html). Both variants were fitted
 with FINN 0.2.0 (commit 0848b60) with `weights = "auto"` and `weight_scale = "auto"`
-(every loss term divided by its intercept-only baseline).
+(every loss term divided by its intercept-only baseline), single-threaded.
+
+Each release (tag `v0.1.0`) ships two files per variant: `parameters_<variant>.pt`, the
+name-matched list of parameter tensors that `load_model()` rebuilds the model from with
+the installed FINN, and `model_<variant>.pt`, the whole fitted model object for
+`torch::torch_load()` under the same FINN version. Both sha256 values are in
+`model_info()`.
 
 The chunks are not evaluated when the package is built (set the environment variable
 `FINNMODELFIA_RUN_VIGNETTE=1` to run them): loading a model downloads the released
@@ -33,13 +39,19 @@ parameters once and needs a torch backend.
 
 `load_model()` downloads the parameter list of the release this package version belongs
 to (cached afterwards), checks its sha256 and rebuilds the model with the installed FINN.
+Threads and batch size are pinned to the values the models were fitted and validated
+with: one torch thread, 250 sites per simulation batch (the stochastic draws depend on
+the batching, so a different `batchsize` gives a different realisation).
 
 ```{r load}
 library(FINNmodelFIA)
 library(FINN)
+library(torch)
 library(data.table)
+torch_set_num_threads(1L)                      # pinned: the fits and the validation ran single-threaded
+BATCHSIZE <- model_info()$conus$sim_batchsize  # pinned: 250 sites per simulateForest() batch
 
-model_info()$conus[c("tag", "finn_commit", "patches", "patch_size", "step_years")]
+model_info()$conus[c("tag", "finn_commit", "sha256", "model_sha256", "patches", "patch_size", "step_years", "threads", "sim_batchsize")]
 species_table("conus")
 m <- load_model("conus")
 ```
@@ -58,7 +70,7 @@ init <- fread(ext("conus_example_init.csv"))    # siteID, patchID, species, dbh,
 head(env)
 init_cohort <- makeInitCohorts(init, Nspecies = nrow(species_table("conus")))
 
-sim <- simulate_model(env, init_cohort = init_cohort, variant = "conus")
+sim <- simulate_model(env, init_cohort = init_cohort, variant = "conus", batchsize = BATCHSIZE, threads = 1L)
 out <- as.data.table(sim$long$site)
 out[variable == "ba", .(ba_ha = sum(value) / model_info()$conus$patch_size), by = .(siteID, year)][order(siteID, year)][1:10]
 ```
@@ -79,7 +91,7 @@ either an initial tree list (`siteID`, `patchID` 1..4, `species` from
 
 ```{r bare-ground}
 eq_env <- data.table(siteID = 1L, year = 1:300, tavg_c = 8, prec_mm = 900, cwd_z = 0)
-sim_bg <- simulate_model(eq_env, init_cohort = NULL, variant = "conus", patches = 15L)
+sim_bg <- simulate_model(eq_env, init_cohort = NULL, variant = "conus", patches = 15L, batchsize = BATCHSIZE, threads = 1L)
 bg <- as.data.table(sim_bg$long$site)[variable == "ba"]
 bg <- merge(bg, species_table("conus"), by = "species")
 bg[, ba_ha := value / model_info()$conus$patch_size]

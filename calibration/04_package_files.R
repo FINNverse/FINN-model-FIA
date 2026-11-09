@@ -31,6 +31,8 @@ PARAMS <- list(
   release_tag  = "v0.1.0",                 # placeholder until the coordinator tags the release
   url_template = "https://github.com/FINNverse/FINN-model-FIA/releases/download/%s/%s",
   finn_commit  = "0848b60",                # FINN 0.2.0 main, the version the parameters were fitted under
+  threads      = 1L,                       # the fits and the quickstart run single-threaded (torch_set_num_threads)
+  sim_batchsize = 250L,                    # sites per simulateForest() batch pinned in the quickstart (memory; draws depend on it)
   n_example_sites = 6L,                    # holdout sites shipped as the quickstart example
   variants = list(
     oregon = list(prep_version = "oregon-10yr-v1", train = "train_blocked", holdout = "holdout_blocked",
@@ -64,13 +66,19 @@ for (v in names(PARAMS$variants)) {
   cov <- merge(p$covariates, sc[, .(name = variable, center, scale)], by = "name", sort = FALSE)
   stopifnot(nrow(cov) == nrow(p$covariates))
   cov_all[[v]] <- cbind(variant = v, cov)
+  ## two release assets per variant: the name-matched parameter list (what
+  ## load_model() rebuilds from) and the whole model object (torch_load() under
+  ## the same FINN version restores it directly, methods included)
   sha <- readLines(file.path("calibration", v, "parameters_sha256.txt"))
-  file <- sprintf("parameters_%s.pt", v)
+  model_sha <- readLines(file.path("calibration", v, "model_sha256.txt"))
+  file <- sprintf("parameters_%s.pt", v); model_file <- sprintf("model_%s.pt", v)
   weights[[v]] <- list(tag = PARAMS$release_tag, file = file, url = sprintf(PARAMS$url_template, PARAMS$release_tag, file),
-                       sha256 = sha, finn_commit = PARAMS$finn_commit, patches = p$patches, patch_size = p$patch_size,
-                       step_years = p$step_years, data_version = p$prep_version)
-  ## the release asset carries the variant in its name
+                       sha256 = sha, model_file = model_file, model_url = sprintf(PARAMS$url_template, PARAMS$release_tag, model_file),
+                       model_sha256 = model_sha, finn_commit = PARAMS$finn_commit, patches = p$patches, patch_size = p$patch_size,
+                       step_years = p$step_years, data_version = p$prep_version,
+                       threads = PARAMS$threads, sim_batchsize = PARAMS$sim_batchsize)
   file.copy(file.path(DATA_DIR, "fits", v, "parameters.pt"), file.path(DATA_DIR, "fits", v, file), overwrite = TRUE)
+  file.copy(file.path(DATA_DIR, "fits", v, "model.pt"), file.path(DATA_DIR, "fits", v, model_file), overwrite = TRUE)
   expected[[v]] <- fread(file.path("calibration", v, "expected_preparation.csv"))
   ## example sites: the first holdout sites, env and initial trees, renumbered 1..n
   env <- fread(file.path(hold_dir, "env_dt.csv")); init <- fread(file.path(hold_dir, "init_cohort_dt.csv"))

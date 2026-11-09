@@ -5,22 +5,32 @@
       "file": "parameters_oregon.pt",
       "url": "https://github.com/FINNverse/FINN-model-FIA/releases/download/v0.1.0/parameters_oregon.pt",
       "sha256": "e2cdd010f37eb4ea38bad8aa770b01c6c31512de67a262fd81ef52a58e618a83",
+      "model_file": "model_oregon.pt",
+      "model_url": "https://github.com/FINNverse/FINN-model-FIA/releases/download/v0.1.0/model_oregon.pt",
+      "model_sha256": "f6cab577b544eacde76f9acda86dd799875fcd2715e231b636a2c5f87a54239a",
       "finn_commit": "0848b60",
       "patches": 4,
       "patch_size": 0.01681,
       "step_years": 10,
-      "data_version": "oregon-10yr-v1"
+      "data_version": "oregon-10yr-v1",
+      "threads": 1,
+      "sim_batchsize": 250
     },
     "conus": {
       "tag": "v0.1.0",
       "file": "parameters_conus.pt",
       "url": "https://github.com/FINNverse/FINN-model-FIA/releases/download/v0.1.0/parameters_conus.pt",
       "sha256": "493aff60db1dfc7b001a92ad1fd1e53e588cf11a8d90852ab931c359287dc0f5",
+      "model_file": "model_conus.pt",
+      "model_url": "https://github.com/FINNverse/FINN-model-FIA/releases/download/v0.1.0/model_conus.pt",
+      "model_sha256": "ab8bc32d2de808a2f2a7c480f4d987e4f8700a1f46c0e4a7f39b11c467d3f565",
       "finn_commit": "0848b60",
       "patches": 4,
       "patch_size": 0.01681,
       "step_years": 1,
-      "data_version": "conus-annual-v1"
+      "data_version": "conus-annual-v1",
+      "threads": 1,
+      "sim_batchsize": 250
     }
   }
 }
