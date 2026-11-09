@@ -1,0 +1,20 @@
+Package: FINNmodelFIA
+Type: Package
+Title: A Fitted FINN Forest Model for US Forests (FIA)
+Version: 0.0.0.9000
+Authors@R:
+    c(person(given = "Yannek", family = "Käber", role = c("aut", "cre"),
+             email = "y.kaeber@posteo.de", comment = c(ORCID = "0000-0002-7041-9849")),
+      person(given = "Maximilian", family = "Pichler", role = "aut",
+             email = "maximilian.pichler@biologie.uni-regensburg.de", comment = c(ORCID = "0000-0003-2252-8327")))
+Description: A fitted FINN forest model calibrated to the US Forest Inventory and Analysis (FIA), packaged as a
+    versioned simulation tool. Loads the released parameters, rebuilds the model
+    with the installed FINN and simulates forest dynamics for new sites.
+License: GPL (>= 3)
+Encoding: UTF-8
+URL: https://github.com/FINNverse/FINN-model-FIA, https://finnverse.github.io/FINN-zoo/
+Depends: R (>= 4.1)
+Imports: FINN (>= 0.2.0), torch, jsonlite, digest, tools, utils
+Suggests: knitr, rmarkdown, data.table
+Remotes: FINNverse/FINN
+VignetteBuilder: knitr

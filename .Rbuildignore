@@ -1,0 +1,4 @@
+^calibration$
+^MODEL_REPO_CONVENTIONS\.md$
+^.*\.Rproj$
+^\.Rproj\.user$

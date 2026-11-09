@@ -1,0 +1,7 @@
+*.pt
+.Rproj.user/
+.Rhistory
+.RData
+.DS_Store
+data/
+outputs/
