@@ -13,10 +13,15 @@ model_info = function() {
 
 #' Species of the model
 #'
-#' @return A data.frame with the species index used by the model and its name.
+#' @param variant Model variant (see [model_info()]); `NULL` takes the default (first).
+#' @return A data.frame with the species index used by that variant and its name.
 #' @export
-species_table = function() {
-  utils::read.csv(system.file("model", "species.csv", package = utils::packageName()))
+species_table = function(variant = NULL) {
+  if (is.null(variant)) variant = names(model_info())[1]
+  sp = utils::read.csv(system.file("model", "species.csv", package = utils::packageName()))
+  sp = sp[sp$variant == variant, c("species", "name")]
+  rownames(sp) = NULL
+  sp
 }
 
 #' Load the fitted model

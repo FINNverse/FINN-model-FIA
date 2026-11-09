@@ -1,0 +1,93 @@
+---
+title: "Quickstart: simulating US forests with FINNmodelFIA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quickstart: simulating US forests with FINNmodelFIA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 8, fig.height = 4,
+                      eval = nzchar(Sys.getenv("FINNMODELFIA_RUN_VIGNETTE")))
+```
+
+`FINNmodelFIA` ships two fitted [FINN](https://github.com/FINNverse/FINN) forest
+models calibrated to the US Forest Inventory and Analysis (FIA) network:
+
+| variant | region | species | time step | climate inputs |
+|---|---|---|---|---|
+| `oregon` | Oregon | 27 + other | 10 years | `temp` (mean annual temperature, C), `prec` (annual precipitation, mm), WorldClim normals |
+| `conus` | conterminous US | 20 | 1 year | `tavg_c`, `prec_mm` (yearly), `cwd_z` (growing-season water-deficit anomaly of the year) |
+
+The model card with data, validation and limitations is in the
+[FINN-zoo](https://finnverse.github.io/FINN-zoo/models.html). Both variants were fitted
+with FINN 0.2.0 (commit 0848b60) with `weights = "auto"` and `weight_scale = "auto"`
+(every loss term divided by its intercept-only baseline).
+
+The chunks are not evaluated when the package is built (set the environment variable
+`FINNMODELFIA_RUN_VIGNETTE=1` to run them): loading a model downloads the released
+parameters once and needs a torch backend.
+
+## Load a model
+
+`load_model()` downloads the parameter list of the release this package version belongs
+to (cached afterwards), checks its sha256 and rebuilds the model with the installed FINN.
+
+```{r load}
+library(FINNmodelFIA)
+library(FINN)
+library(data.table)
+
+model_info()$conus[c("tag", "finn_commit", "patches", "patch_size", "step_years")]
+species_table("conus")
+m <- load_model("conus")
+```
+
+## Simulate example sites
+
+Six holdout plots per variant ship with the package: the climate they saw and their
+first inventory. The environment table has one row per site and simulated year with the
+covariates in natural units; the initial trees become FINN cohorts with
+`makeInitCohorts()`.
+
+```{r example-sites}
+ext <- function(f) system.file("extdata", f, package = "FINNmodelFIA")
+env  <- fread(ext("conus_example_env.csv"))     # siteID, year, tavg_c, prec_mm, cwd_z
+init <- fread(ext("conus_example_init.csv"))    # siteID, patchID, species, dbh, trees
+head(env)
+init_cohort <- makeInitCohorts(init, Nspecies = nrow(species_table("conus")))
+
+sim <- simulate_model(env, init_cohort = init_cohort, variant = "conus")
+out <- as.data.table(sim$long$site)
+out[variable == "ba", .(ba_ha = sum(value) / model_info()$conus$patch_size), by = .(siteID, year)][order(siteID, year)][1:10]
+```
+
+`simulate_model()` is `FINN::simulateForest()` with the patch layout of the fit
+(4 patches of 0.01681 ha, the four FIA subplots); `ba` and `trees` come back per patch,
+so divide by `patch_size` for per-hectare values.
+
+## Your own sites
+
+For new sites build the same two tables: an environment table with `siteID`, `year`
+(1..T) and the variant's covariates (see `read.csv(system.file("model",
+"covariates.csv", package = "FINNmodelFIA"))` for units and how to derive them), and
+either an initial tree list (`siteID`, `patchID` 1..4, `species` from
+`species_table()`, `dbh` in cm, `trees`) or `init_cohort = NULL` for bare ground.
+
+## Succession from bare ground
+
+```{r bare-ground}
+eq_env <- data.table(siteID = 1L, year = 1:300, tavg_c = 8, prec_mm = 900, cwd_z = 0)
+sim_bg <- simulate_model(eq_env, init_cohort = NULL, variant = "conus", patches = 15L)
+bg <- as.data.table(sim_bg$long$site)[variable == "ba"]
+bg <- merge(bg, species_table("conus"), by = "species")
+bg[, ba_ha := value / model_info()$conus$patch_size]
+library(ggplot2)
+ggplot(bg[ba_ha > 0.01], aes(as.integer(as.character(year)), ba_ha, colour = name)) +
+  geom_line() + labs(x = "year since bare ground", y = "basal area (m2/ha)", colour = NULL) +
+  theme_minimal()
+```
+
+The Oregon variant works the same way with `variant = "oregon"`; its `year` counts
+10-year steps and its covariates are `temp` and `prec`.

@@ -1,1 +1,49 @@
-species,name
+variant,species,name
+oregon,1,Abies amabilis
+oregon,2,Abies concolor
+oregon,3,Abies grandis
+oregon,4,Abies lasiocarpa
+oregon,5,Abies procera
+oregon,6,Abies shastensis
+oregon,7,Acer macrophyllum
+oregon,8,Alnus rubra
+oregon,9,Arbutus menziesii
+oregon,10,Calocedrus decurrens
+oregon,11,Chrysolepis chrysophylla var. chrysophylla
+oregon,12,Juniperus occidentalis
+oregon,13,Larix occidentalis
+oregon,14,Lithocarpus densiflorus
+oregon,15,Picea engelmannii
+oregon,16,Picea sitchensis
+oregon,17,Pinus contorta
+oregon,18,Pinus lambertiana
+oregon,19,Pinus monticola
+oregon,20,Pinus ponderosa
+oregon,21,Pseudotsuga menziesii
+oregon,22,Quercus chrysolepis
+oregon,23,Quercus garryana
+oregon,24,Quercus kelloggii
+oregon,25,Thuja plicata
+oregon,26,Tsuga heterophylla
+oregon,27,Tsuga mertensiana
+oregon,28,other
+conus,1,Abies lasiocarpa
+conus,2,Acer rubrum
+conus,3,Acer saccharum
+conus,4,Betula alleghaniensis
+conus,5,Fagus grandifolia
+conus,6,Fraxinus americana
+conus,7,Juniperus osteosperma
+conus,8,Liriodendron tulipifera
+conus,9,Nyssa sylvatica
+conus,10,Picea engelmannii
+conus,11,Pinus contorta
+conus,12,Pinus edulis
+conus,13,Pinus ponderosa
+conus,14,Populus tremuloides
+conus,15,Prunus serotina
+conus,16,Pseudotsuga menziesii
+conus,17,Quercus alba
+conus,18,Quercus rubra
+conus,19,Quercus velutina
+conus,20,Ulmus americana

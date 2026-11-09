@@ -1,14 +1,129 @@
+#' Definitions of the model variants
+#'
+#' One entry per variant: the species count, the climate covariates, the
+#' process functions and the settings `build_model()` needs to recreate the
+#' structure that `calibration/<variant>/02_fit.R` fitted. Kept in one place so
+#' the quickstart, [simulate_model()] and the calibration scripts read the same
+#' numbers.
+#'
+#' @return A named list of variant definitions.
+#' @keywords internal
+variant_definitions = function() {
+  list(
+    ## Oregon, 10-year time step, 27 species + other, linear climate response
+    oregon = list(
+      n_species    = 28L,
+      covariates   = c("temp", "prec"),
+      formula      = ~ temp + prec,
+      hidden       = NULL,
+      dropout      = 0,
+      regeneration = "saturation",
+      reg_K_init   = 500,
+      adult_x_init = NULL,
+      adult_A_init = NULL,
+      reg_floor    = 0.01,
+      recruits_dbh = 12.9,
+      patches      = 4L,
+      patch_size   = 0.01681,
+      step_years   = 10L
+    ),
+    ## conterminous US, annual time step, 20 species, climate networks
+    conus = list(
+      n_species    = 20L,
+      covariates   = c("tavg_c", "prec_mm", "cwd_z"),
+      formula      = ~ tavg_c + prec_mm + cwd_z,
+      hidden       = c(20L, 20L),
+      dropout      = 0.1,
+      regeneration = "adult",
+      reg_K_init   = 50,
+      adult_x_init = 20,
+      adult_A_init = 15,
+      reg_floor    = 1e-3,
+      recruits_dbh = 12.9,
+      patches      = 4L,
+      patch_size   = 0.01681,
+      step_years   = 1L
+    )
+  )
+}
+
 #' Build the model structure and set its fitted parameters
 #'
 #' The model definition of this package: the same `createProcess()` and
-#' `finn()` calls as `calibration/fit.R`, followed by copying the fitted
-#' parameters into the new object.
+#' `finn()` calls as `calibration/<variant>/02_fit.R`, followed by copying the
+#' fitted parameters into the new object. FINN creates the climate networks
+#' lazily on first use, so a one-site, one-step simulation on a dummy
+#' environment is run before the parameters are copied.
 #'
 #' @param variant Name of the model variant (see [model_info()]).
 #' @param parameters Named list of parameter tensors, as saved by the
-#'   calibration script.
-#' @return A fitted `FINN` model.
+#'   calibration script (`parameters.pt`).
+#' @param env_scaling Data frame with `variable`, `center`, `scale`: the
+#'   standardisation FINN learned from the training environment
+#'   (`env_autoscale = TRUE`). `NULL` reads it from the package's
+#'   `inst/model/covariates.csv`.
+#' @return A fitted `FINN` model in evaluation mode.
 #' @keywords internal
-build_model = function(variant, parameters) {
-  stop("build_model() is not written yet for this package.", call. = FALSE)
+build_model = function(variant, parameters, env_scaling = NULL) {
+  defs = variant_definitions()
+  if (!variant %in% names(defs))
+    stop("Unknown variant '", variant, "'; available: ", paste(names(defs), collapse = ", "), call. = FALSE)
+  d = defs[[variant]]
+  if (is.null(env_scaling)) {
+    path = system.file("model", "covariates.csv", package = utils::packageName())
+    if (!nzchar(path)) path = file.path("inst", "model", "covariates.csv")
+    cov = utils::read.csv(path)
+    cov = cov[cov$variant == variant, ]
+    env_scaling = data.frame(variable = cov$name, center = cov$center, scale = cov$scale)
+  }
+  env_scaling = as.data.frame(env_scaling)[, c("variable", "center", "scale")]
+  if (!setequal(env_scaling$variable, d$covariates))
+    stop("env_scaling must cover exactly the covariates ", paste(d$covariates, collapse = ", "), call. = FALSE)
+
+  ## createProcess() reads its formula from the call; through do.call() the
+  ## formula object itself stands in the call, so the same code serves every variant
+  process = function(func, custom_parameters = NULL)
+    do.call(FINN::createProcess, c(list(formula = d$formula, func = func, hidden = d$hidden, dropout = d$dropout,
+                                        optimizeSpecies = TRUE, optimizeEnv = TRUE),
+                                   if (!is.null(custom_parameters)) list(custom_parameters = custom_parameters)))
+  regeneration_process = switch(d$regeneration,
+    saturation = process(FINN::regeneration_saturation,
+                         list(reg_logK = rep(log(d$reg_K_init), d$n_species))),
+    adult      = process(FINN::regeneration_adult,
+                         list(reg_logK       = rep(log(d$reg_K_init),   d$n_species),
+                              reg_adult_logx = rep(log(d$adult_x_init), d$n_species),
+                              reg_adult_logA = rep(log(d$adult_A_init), d$n_species))),
+    stop("unknown regeneration process ", d$regeneration))
+  model = FINN::finn(
+    N_species    = d$n_species,
+    recruits_dbh = d$recruits_dbh,
+    reg_floor    = d$reg_floor,
+    competition_process  = FINN::createProcess(~0, FINN::competition, optimizeSpecies = TRUE),
+    growth_process       = process(FINN::growth),
+    mortality_process    = process(FINN::mortality),
+    regeneration_process = regeneration_process
+  )
+  model$env_scaling = env_scaling
+
+  ## instantiate the lazily created climate networks
+  dummy = data.frame(siteID = 1L, year = 1L)
+  for (v in d$covariates) dummy[[v]] = env_scaling$center[match(v, env_scaling$variable)]
+  invisible(FINN::simulateForest(model, env = dummy, init_cohort = NULL, patches = 1L,
+                                 patch_size = d$patch_size, device = "cpu"))
+
+  have = model$parameters
+  missing = setdiff(names(have), names(parameters)); extra = setdiff(names(parameters), names(have))
+  if (length(missing) || length(extra))
+    stop("parameter list does not match the model: missing ", paste(missing, collapse = ", "),
+         "; unexpected ", paste(extra, collapse = ", "), call. = FALSE)
+  torch::with_no_grad({
+    for (nm in names(have)) {
+      if (!identical(as.integer(have[[nm]]$shape), as.integer(parameters[[nm]]$shape)))
+        stop("parameter '", nm, "' has shape ", paste(parameters[[nm]]$shape, collapse = "x"),
+             " but the model expects ", paste(have[[nm]]$shape, collapse = "x"), call. = FALSE)
+      have[[nm]]$copy_(parameters[[nm]]$to(dtype = have[[nm]]$dtype))
+    }
+  })
+  model$eval()
+  model
 }

@@ -1,1 +1,6 @@
-name,unit,source,derivation
+variant,name,unit,source,derivation,center,scale
+oregon,temp,degree C,"WorldClim 2.1 bio1 (1970-2000 normal), 30 arc-sec",mean annual temperature at the plot; constant over the simulation steps,6.87163841522346,2.4446663935521
+oregon,prec,mm per year,"WorldClim 2.1 bio12 (1970-2000 normal), 30 arc-sec",annual precipitation sum at the plot; constant over the simulation steps,1078.07966101695,673.150784283554
+conus,tavg_c,degree C,"TerraClimate (4 km), yearly",mean annual temperature of the simulated year at the plot,6.70923272946862,3.63449173147598
+conus,prec_mm,mm per year,"TerraClimate (4 km), yearly",annual precipitation sum of the simulated year at the plot,478.305188405799,318.72716849492
+conus,cwd_z,z-score,"TerraClimate (4 km), yearly","growing-season (Apr-Sep) climatic water deficit of the year, standardised by the plot's 1958-2023 mean and sd; 0 = average year, > 1 = severe drought",0.379684005538895,0.935668418243743

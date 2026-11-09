@@ -15,6 +15,6 @@ Encoding: UTF-8
 URL: https://github.com/FINNverse/FINN-model-FIA, https://finnverse.github.io/FINN-zoo/
 Depends: R (>= 4.1)
 Imports: FINN (>= 0.2.0), torch, jsonlite, digest, tools, utils
-Suggests: knitr, rmarkdown, data.table
+Suggests: knitr, rmarkdown, data.table, ggplot2
 Remotes: FINNverse/FINN
 VignetteBuilder: knitr
