@@ -61,3 +61,38 @@ conus pilot exceeds 2 h, resubmit with `--time=04:00:00`); the evaluation adds 3
 Memory < 4 GB.
 
 The laptop pilot queue is stopped (nothing runs twice).
+
+## v0.2 production fits: the recipe chains (2026-11-10)
+
+The production fits follow the zoo v0.2 recipe (`FINN-zoo-data/RECIPE_v02.md`), one
+chain per variant, each three self-contained scripts (`Rscript <script>` from the
+repository root, one thread for the fits, four for the validation):
+
+| variant | scripts | data | fit folder (outside git) | chain |
+|---|---|---|---|---|
+| conus | `calibration/v02/recipe/conus/{fit_stageA.R, fit_stageB.R, validation.R}` | `prepared/conus-annual-v2/{train,holdout}` | `fits/conus-annual-v2-recipe/` | `bash hpc/submit_recipe_conus.sh` (A 12 h / B 6 h, 16 GB; V 3 h, 4 CPUs) |
+| oregon | `calibration/v02/recipe/oregon/{fit_stageA.R, fit_stageB.R, validation.R}` | `prepared/oregon-10yr-v2/{train_blocked,holdout_blocked}` | `fits/oregon-10yr-v2-recipe/` | `bash hpc/submit_recipe_oregon.sh` (A 2 h / B 1 h, 8 GB; V 1 h, 4 CPUs) |
+
+Stage A fits competition, growth and the U-shaped mortality with climate networks while
+the observed recruits are fed in; stage B fits `regeneration_saturation` with the
+demography and the ML dispersion frozen (all losses); validation writes `report.md` and
+`validation/` into the fit folder. The chains use `--dependency=afterok`. Laptop smoke
+tests (3 epochs, the first 200 training plots, one thread): conus 2.7 / 2.4 s per epoch
+(A / B), Oregon 0.4 / 0.4 s; the limits above carry the cluster's factor 3 and a 2x
+margin. The drafts `calibration/v02/fit_conus.R` and `fit_oregon.R` predate the recipe
+and are superseded by the recipe folders.
+
+Deviations from the reference implementation (documented in every script header):
+the observed recruits are fed as a per-patch mean rate and the recruits of every stage
+and simulation are drawn with FINN's `regeneration_sampler = "refined"` (a plot is
+4 subplots of 0.01681 ha with one site-level env, so one observed recruit is a quarter
+tree per patch, which FINN's deterministic rounding and its default "gaussian" sampler
+drop); conus uses the yearly TerraClimate columns incl. `cwd_z` (the data version has no
+normals) and per-interval windows for plots with several censuses; Oregon has one step
+per decade and no tree table (site-level growth and mortality losses), and uses the
+climate network the recipe asks for (the smoke test fits it on 200 plots). K is
+trainable as the recipe says; the stage-B summary reports it against the observed
+recruitment maxima so a runaway (the v0.1 Oregon fit) is visible.
+
+Fetch the results: `rsync -av <cluster>:finn-zoo/FINN-zoo-data/fia/fits/conus-annual-v2-recipe/ ../../FINN-zoo-data/fia/fits/conus-annual-v2-recipe/`
+and the same for `oregon-10yr-v2-recipe/`.

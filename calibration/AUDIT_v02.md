@@ -126,3 +126,19 @@ GLM warm start: not piloted. The per-species GLM warm start of FINN-bwi maps lin
 
 Filled in by the pilot queue (`calibration/v02/pilots/<pilot>/summary.csv`, `metrics.csv`); see the
 comparison table in `calibration/v02/PILOTS_v02.md` and the notes.
+
+## 5. The v0.2 production fits (2026-11-10)
+
+The production fits follow the zoo v0.2 recipe (`FINN-zoo-data/RECIPE_v02.md`) rather than
+the candidate settings of section 3: `calibration/v02/recipe/<variant>/{fit_stageA.R,
+fit_stageB.R, validation.R}`, chained on the cluster by `hpc/submit_recipe_<variant>.sh`.
+What the pilots decided, and how the recipe covers it:
+
+| pilot finding | recipe element | FIA-specific decision |
+|---|---|---|
+| staged fit beats the joint fit on the change metrics (C2, O3) | stage A (demography, observed recruits fed) then stage B (regeneration alone, demography frozen) | as the recipe |
+| the fixed data-derived cap and the frozen theta stop the stems drift (C1, O1-O3) | `regeneration_saturation` with a TRAINABLE K (warm start 10 per ha per year conus, 50 per ha per decade Oregon) and theta frozen at its ML value in [0.01, 100] | K trainable as the recipe says; `fit_summary_stageB.md` and `regeneration_parameters.csv` list the fitted K beside the observed per-species maxima; the fixed cap of the pilots is the fallback if K runs away |
+| cosine lr (F1) | cosine, lr 0.005, 300 + 150 epochs | as the recipe |
+| linear climate was the best Oregon arm (O3) | SELU network 20-20 on growth and mortality | the network, as the recipe asks; it fits on 200 plots in the smoke test; the holdout report decides whether 450 plots support it |
+| mortality floor (J) | default floor and gamma draw | as the recipe; the report states the floor (1 %/yr conus, 1 %/decade Oregon) beside the mortality ratios |
+| recruitment is rare and bursty (I); patches are 0.0168 ha | - | the observed recruits are fed as a per-patch MEAN rate, and every stage and simulation draws recruits with `regeneration_sampler = "refined"` (exact Poisson below a per-patch mean of 2): one observed recruit is 0.25 trees per patch, which FINN's deterministic rounding drops (67 % of the conus recruits and 78 % of the Oregon ones would survive a whole-tree schedule, with 1-recruit cells lost entirely) and the default "gaussian" sampler delivers ~0 % of means below 0.05 |
