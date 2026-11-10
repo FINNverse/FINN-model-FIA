@@ -17,6 +17,9 @@ repository root, so the cluster needs the same two-level layout:
 - the pilot scripts: `calibration/v02/pilot_oregon_O0_v01.R`, `pilot_oregon_O1_cap_cosine.R`,
   `pilot_oregon_O2_v2_cap_theta.R`, `pilot_oregon_O3_v2_staged.R`, `pilot_conus_C0_v01.R`,
   `pilot_conus_C1_v2_cap_theta_cosine.R`, `pilot_conus_C2_v2_staged.R`
+- `calibration/v02/pilot_conus_C3_floor.R` (the mortality-floor arm: needs the branch build
+  `zoo-v02-mortfloor` installed as `~/R/lib-finn-zoo-v02` on the cluster; the script puts
+  that library first and stops if `createProcess(mortality_floor=)` is missing)
 - `hpc/run_pilot.sbatch` (resource-only wrapper: 1 CPU, `OMP_NUM_THREADS=1`, 8 GB, 2 h)
 - `calibration/v02/compare_pilots.R` (afterwards, on the copied-back results)
 
