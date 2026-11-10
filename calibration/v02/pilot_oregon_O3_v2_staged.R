@@ -23,6 +23,8 @@ suppressPackageStartupMessages({ library(FINN); library(data.table); library(tor
 source(file.path("calibration", "v02", "pilot_eval.R"))
 source(file.path("R", "definition.R"))
 torch_set_num_threads(1L)
+## torch >= 0.14 has the faster ignite Adam (FINN's default); the cluster's torch 0.13 falls back to optim_adam
+OPTIMIZER <- if (exists("optim_ignite_adam", envir = asNamespace("torch"))) torch::optim_ignite_adam else torch::optim_adam
 DATA_DIR <- normalizePath(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.path("..", "FINN-zoo-data", "fia"))[
   dir.exists(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.path("..", "FINN-zoo-data", "fia")))][1])
 LABEL <- "oregon_O3_v2_staged"; OUT <- file.path("calibration", "v02", "pilots", LABEL); dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
@@ -73,7 +75,7 @@ fit(model, env = train$env, data = train$obs, init_cohort = init_cohort,
     lr_scheduler_params = list(T_max = PARAMS$epochs_A),
     weights = PARAMS$weights_A, weight_scale = PARAMS$weight_scale, loss_family = PARAMS$loss_family,
     patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, env_autoscale = TRUE, device = "cpu",
-    folder = NULL, checkpoints = 10L, plot_progress = FALSE)
+    optimizer = OPTIMIZER, folder = NULL, checkpoints = 10L, plot_progress = FALSE)
 lhA <- as.data.table(do.call(rbind, model$history)); setnames(lhA, c("dbh", "ba", "trees", "growth", "mort", "reg", "total")[seq_len(ncol(lhA))]); lhA[, `:=`(epoch = .I, stage = "A")]
 ## stage B: recruitment alone, everything else frozen (theta and K stay frozen)
 set_trainable(model, "^nn_regeneration|^par_regeneration", TRUE)
@@ -83,7 +85,7 @@ fit(model, env = train$env, data = train$obs, init_cohort = init_cohort,
     lr_scheduler_params = list(T_max = PARAMS$epochs_B),
     weights = PARAMS$weights_B, weight_scale = PARAMS$weight_scale, loss_family = PARAMS$loss_family,
     patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, env_autoscale = TRUE, device = "cpu",
-    folder = NULL, checkpoints = 10L, plot_progress = FALSE)
+    optimizer = OPTIMIZER, folder = NULL, checkpoints = 10L, plot_progress = FALSE)
 minutes <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 lhB <- as.data.table(do.call(rbind, model$history)); setnames(lhB, c("dbh", "ba", "trees", "growth", "mort", "reg", "total")[seq_len(ncol(lhB))]); lhB[, `:=`(epoch = .I, stage = "B")]
 lh <- rbind(lhA, lhB)

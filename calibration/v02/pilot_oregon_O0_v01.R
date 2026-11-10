@@ -15,6 +15,8 @@
 suppressPackageStartupMessages({ library(FINN); library(data.table); library(torch) })
 source(file.path("calibration", "v02", "pilot_eval.R"))
 torch_set_num_threads(1L)
+## torch >= 0.14 has the faster ignite Adam (FINN's default); the cluster's torch 0.13 falls back to optim_adam
+OPTIMIZER <- if (exists("optim_ignite_adam", envir = asNamespace("torch"))) torch::optim_ignite_adam else torch::optim_adam
 DATA_DIR <- normalizePath(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.path("..", "FINN-zoo-data", "fia"))[
   dir.exists(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.path("..", "FINN-zoo-data", "fia")))][1])
 LABEL <- "oregon_O0_v01"; OUT <- file.path("calibration", "v02", "pilots", LABEL); dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
@@ -47,7 +49,7 @@ fit(model, env = train$env, data = train$obs, init_cohort = makeInitCohorts(trai
     epochs = PARAMS$epochs, batchsize = PARAMS$batchsize, lr = PARAMS$lr, lr_scheduler = PARAMS$lr_scheduler,
     weights = PARAMS$weights, weight_scale = PARAMS$weight_scale, loss_family = PARAMS$loss_family,
     patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, env_autoscale = TRUE, device = "cpu",
-    folder = NULL, checkpoints = 10L, plot_progress = FALSE)
+    optimizer = OPTIMIZER, folder = NULL, checkpoints = 10L, plot_progress = FALSE)
 minutes <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 lh <- as.data.table(do.call(rbind, model$history)); setnames(lh, c("dbh", "ba", "trees", "growth", "mort", "reg", "total")[seq_len(ncol(lh))]); lh[, epoch := .I]
 fwrite(lh, file.path(OUT, "loss_history.csv"))
