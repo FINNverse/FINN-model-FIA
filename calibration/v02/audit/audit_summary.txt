@@ -1,0 +1,29 @@
+[A oregon/train] sites 590; env starts at 1: 590; env rows == max env year: 590; first census year == first period_length: 590; env covers last census: 590
+[A oregon/holdout] sites 118; env starts at 1: 118; env rows == max env year: 118; first census year == first period_length: 118; env covers last census: 118
+[A conus/train] sites 1500; env starts at 1: 1500; env rows == max env year: 1500; first census year == first period_length: 1500; env covers last census: 1500
+[A conus/holdout] sites 1000; env starts at 1: 1000; env rows == max env year: 1000; first census year == first period_length: 1000; env covers last census: 1000
+[B conus] trees >= 12.7 cm alive at a later census on the 2500 model plots: survivor >= 12.7 cm before: 65334; no previous CN (counted as recruit in v0.1): 8003; tracked from below 12.7 cm (microplot record; NOT counted in v0.1): 720
+[B conus] v0.1 recruitment target counts 8003 trees; 720 further trees crossed 12.7 cm with a microplot record before (missed): target is 92 % of the ingrowth
+[C conus] records on the model plots: alive 163672, dead 44840, cut (STATUSCD 3) 0
+[D conus] macroplot records: 1336 of 142778 alive >= 12.7 cm records, on plots of states 41,53,6
+[E oregon] holdout predicted/observed totals: growth 0.89, deaths 0.75, recruits 1.77, basal area 1.062, stems 1.313
+[E oregon] change metrics (holdout): species x plot delta basal area R2 -0.05 (sign agreement -); species x plot delta stems R2 -0.39 (sign agreement -); stand total delta basal area R2 -0.13 (sign agreement 0.71); stand total delta stems R2 -0.71 (sign agreement 0.54)
+[E oregon] stand delta BA per plot: observed mean 0.0658, predicted mean 0.0986 m2/patch; delta stems observed 0.327, predicted 2.303 per patch
+[E oregon] delta BA by initial stand BA (m2/ha): 
+[E oregon] recruitment cells: observed zero 0.95, predicted < 0.5 0.61; q99 obs 59.5 pred 54.9; max obs 521 pred 170 per ha per period
+[E conus] holdout predicted/observed totals: growth 0.98, deaths 0.64, recruits 0.89, basal area 1.116, stems 1.122
+[E conus] change metrics (holdout): species x plot delta basal area R2 -0.01 (sign agreement -); species x plot delta stems R2 0.01 (sign agreement -); stand total delta basal area R2 -0.04 (sign agreement 0.60); stand total delta stems R2 -0.07 (sign agreement 0.44)
+[E conus] stand delta BA per plot: observed mean -0.0304, predicted mean 0.0097 m2/patch; delta stems observed -0.742, predicted -0.039 per patch
+[E conus] delta BA by initial stand BA (m2/ha): 
+[E conus] per-tree growth pred/obs by size: 
+[E conus] per-tree death prob pred/obs by size: 12.7-20 0.72; 20-30 0.64; 30-40 0.51; 40-60 0.50; >60 0.53
+[E conus] recruitment cells: observed zero 0.96, predicted < 0.5 0.89; q99 obs 44.6 pred 32.8; max obs 803 pred 121 per ha per period
+[F oregon] mean |change| per snapshot (every 10 epochs), last / first: nn_mortality.0.weight 0.74; nn_growth.0.weight 0.57; nn_regeneration.0.weight 0.20; par_mortality_unconstrained 0.65; par_growth_unconstrained 0.48; reg_logK 0.20; par_regeneration_unconstrained 0.25; par_theta_recruits_raw 0.47; par_competition_unconstrained 0.37
+[F oregon] loss over the last fifth of the fit: dbh 0.291 -> 0.972; ba 0.090 -> 0.165; trees 0.386 -> 0.376; growth 0.866 -> 0.603; mort 1.030 -> 1.023; reg 0.448 -> 0.462
+[F oregon] theta: median 0.0837, min 0.0561, max 2.78; K per ha per step: median 37.9, max 131272 (other)
+[F conus] mean |change| per snapshot (every 10 epochs), last / first: nn_mortality.0.weight 1.38; nn_mortality.0.bias 1.16; nn_mortality.3.weight 1.45; nn_mortality.3.bias 1.16; nn_mortality.6.weight 1.07; nn_mortality.6.bias 1.05; nn_growth.0.weight 0.94; nn_growth.0.bias 0.74; nn_growth.3.weight 1.18; nn_growth.3.bias 0.59; nn_growth.6.weight 0.92; nn_growth.6.bias 0.58; nn_regeneration.0.weight 2.55; nn_regeneration.0.bias 2.48; nn_regeneration.3.weight 4.71; nn_regeneration.3.bias 7.21; nn_regeneration.6.weight 2.22; nn_regeneration.6.bias 1.53; par_mortality_unconstrained 1.10; par_growth_unconstrained 0.60; reg_logK 0.85; reg_adult_logx 0.25; reg_adult_logA 0.37; par_regeneration_unconstrained 0.28; par_theta_recruits_raw 0.46; par_competition_unconstrained 0.36
+[F conus] loss over the last fifth of the fit: dbh 0.695 -> 0.505; ba 0.087 -> 0.087; trees 0.217 -> 0.199; growth 0.749 -> 0.629; mort 0.825 -> 0.873; reg 0.294 -> 0.283
+[F conus] theta: median 0.0613, min 0.0481, max 12.2; K per ha per step: median 31.6, max 450 (Pinus contorta)
+[G oregon] bare-ground end state (last 10 %): 10.4 C, 2144 mm total 412 m2/ha, top Tsuga heterophylla 61 %, other 8 %; 4.3 C, 410 mm total 143 m2/ha, top Thuja plicata 53 %, other 0 %; 5.2 C, 523 mm total 152 m2/ha, top Thuja plicata 38 %, other 0 %; 6.0 C, 1558 mm total 118 m2/ha, top Thuja plicata 22 %, other 10 %; 8.6 C, 1524 mm total 223 m2/ha, top Tsuga heterophylla 73 %, other 4 %
+[G oregon] observed BA share / observed recruit share / predicted recruit share: other 0.008 / 0.011 / 0.273; Abies concolor 0.045 / 0.042 / 0.182; Abies amabilis 0.014 / 0.029 / 0.156; Abies grandis 0.068 / 0.077 / 0.149; Pinus contorta 0.070 / 0.216 / 0.048; Abies lasiocarpa 0.007 / 0.014 / 0.046
+[H conus] intervals (years:n): 4:11 5:218 6:70 7:84 8:1 10:1449 11:1 12:2
