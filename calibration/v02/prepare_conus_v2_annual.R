@@ -1,8 +1,21 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
 ## FINN-model-FIA | calibration/v02/prepare_conus_v2_annual.R   (variant "conus", data v2, step A)
 ##
-## V0.2 DATA (2026-11-10): copy of calibration/conus/08_prepare_annual_v5.R with
-##        ONE change, the recruit rule (audit finding B). A tree that was tallied
+## V0.2 DATA (2026-11-10, agreed rare-species rule, V02_BRIEF.md 05:40 UTC): copy of
+##        calibration/conus/08_prepare_annual_v5.R with THREE changes:
+##        1. SPECIES SET S = the 36 species of calibration/v02/species_set_conus.csv
+##           (species_tradeoff.R: of the top-40 species by plot presence those with
+##           >= 100 plots, >= 500 trees at the start census, presence in >= 1 held-out
+##           block and a temperature span >= 20 % of the pool's; a coverage choice),
+##           instead of the top 20 of the FINN-fia ranking. No lumped class.
+##        2. SITE RULE: a plot is kept when species outside S hold < 2 % of its
+##           basal area at EVERY census that starts an interval (all but the last);
+##           v0.1 checked the first inventory only (99 %). The end census is never a
+##           condition; its out-of-S share is recorded per plot together with the
+##           start-census shares (`site_out_share.csv`, carried into siteID_dt.csv by
+##           prepare_conus_v2.R) so the validation can stratify by it. Trees of
+##           species outside S on kept plots are dropped (option (a)).
+##        3. The recruit rule (audit finding B), as before: a tree that was tallied
 ##        on the microplot below 12.7 cm at the previous visit carries a
 ##        PREV_TRE_CN; the sapling filter drops that earlier record, and v0.1
 ##        then called the tree "alive" at the first census it appears >= 12.7 cm,
@@ -52,8 +65,8 @@ DATA_DIR <- {
 INT <- file.path(DATA_DIR, "intermediate", "conus")
 
 PARAMS <- list(
-  max_species           = 20L,      # the top 20 of the step-7 ranking: strict, so the 99 % rule admits only plots made of modelled species
-  min_selected_ba_share = 0.99,     # a plot is kept if the 20 species hold >= 99 % of its first-inventory basal area
+  species_file          = file.path("calibration", "v02", "species_set_conus.csv"),   # S (36 species), from species_tradeoff.R
+  out_share_max         = 0.02,     # species outside S hold < 2 % of the basal area at every interval-start census
   n_patches             = 4L,       # the four subplots of a plot
   patch_size_ha         = 0.404686 / 6.018046 / 4,   # one subplot = a quarter of the 1/6.018-acre cluster = 0.01681 ha (FINN-fia's acre constant, so `reg` reproduces to the last digit)
   min_n_years           = 2L,       # makeObsData: >= 2 inventories with equal coverage on all patches
@@ -67,7 +80,7 @@ PARAMS <- list(
   max_span_years        = 25L,      # drop plots whose first-to-last inventory span exceeds the horizon
   size_class_breaks     = c(20, 30, 40, 60),   # diagnostic stem-count classes carried on obs_dt (not fitted)
   dbh_probs             = c(0.1, 0.5, 0.9),    # diagnostic diameter quantiles carried on obs_dt (not fitted)
-  prep_version          = "annual-v6-ingrowth",
+  prep_version          = "annual-v7-S36",
   block_deg             = 2,        # spatial blocks of 2 x 2 degrees
   holdout_block_share   = 0.2,      # 20 % of the blocks held out
   block_seed            = 21L,
@@ -105,11 +118,13 @@ plots_dt <- plots_dt[n_subp_sampled_first == 4L & subplots_consistent_over_time 
 message(sprintf("[filter] all 4 subplots usable: %d -> %d plots", n_total, nrow(plots_dt)))
 pilot_plotIDs <- plots_dt$plotID
 
-## ---- 3. the species: top 20 of the step-7 ranking --------------------------
-sel_file <- fread(file.path(INT, "selected_species.csv"))[order(rank)][seq_len(min(PARAMS$max_species, .N))]
-selected_spcds <- unique(sel_file$SPCD)
-selected_species <- unique(species_dt[SPCD %in% selected_spcds, .(SPCD, SCIENTIFIC_NAME)])
-message(sprintf("[species] %d species: %s", length(selected_spcds), paste(sel_file$SCIENTIFIC_NAME, collapse = ", ")))
+## ---- 3. the species set S (v0.2: the chosen 36, by scientific name) --------
+S_set <- fread(PARAMS$species_file)[order(species)]
+sp_codes <- unique(fread(file.path(INT, "calibration_set_trees.csv"), select = c("SPCD", "SCIENTIFIC_NAME")))
+selected_species <- merge(S_set[, .(species_name)], sp_codes, by.x = "species_name", by.y = "SCIENTIFIC_NAME")
+if (nrow(selected_species) != nrow(S_set)) stop("species of S without an SPCD: ", paste(setdiff(S_set$species_name, selected_species$species_name), collapse = ", "))
+selected_spcds <- unique(selected_species$SPCD)
+message(sprintf("[species] S = %d species: %s", length(selected_spcds), paste(S_set$species_name, collapse = ", ")))
 
 ## ---- 4. trees of the plots ---------------------------------------------------
 tree_cols <- c("plotID", "subplotID", "STATECD", "COUNTYCD", "PLOT", "SUBP", "TREE", "CN", "PREV_TRE_CN", "INVYR", "SPCD",
@@ -120,13 +135,20 @@ n_before <- nrow(trees_raw)
 trees_raw <- trees_raw[is.na(dbh_cm) | dbh_cm >= PARAMS$min_dbh_cm]
 message(sprintf("[filter] dbh >= %.1f cm: %d -> %d records on %d plots", PARAMS$min_dbh_cm, n_before, nrow(trees_raw), uniqueN(trees_raw$plotID)))
 
-## ---- 5. the 99 % purity rule at the first inventory ------------------------
-first_yr <- trees_raw[, .(first_yr = min(INVYR)), by = plotID]
-ba_first <- merge(trees_raw[STATUSCD == 1L, .(plotID, INVYR, SPCD, ba_m2)], first_yr, by = "plotID")[INVYR == first_yr]
-site_share <- ba_first[, .(ba_total = sum(ba_m2, na.rm = TRUE), ba_selected = sum(ba_m2[SPCD %in% selected_spcds], na.rm = TRUE)), by = plotID][
-  , share_selected := fifelse(ba_total > 0, ba_selected / ba_total, 0)]
-keep_plotIDs <- site_share[share_selected >= PARAMS$min_selected_ba_share, plotID]
-message(sprintf("[filter] %.0f %% purity: %d -> %d plots", 100 * PARAMS$min_selected_ba_share, length(pilot_plotIDs), length(keep_plotIDs)))
+## ---- 5. the site rule: out-of-S basal area < 2 % at every interval-start census
+## (all censuses but the plot's last); the end-census share is recorded, never a condition
+ba_c <- trees_raw[STATUSCD == 1L, .(ba_total = sum(ba_m2, na.rm = TRUE), ba_out = sum(ba_m2[!SPCD %in% selected_spcds], na.rm = TRUE)), by = .(plotID, INVYR)]
+ba_c[, share_out := fifelse(ba_total > 0, ba_out / ba_total, 1)]
+setorder(ba_c, plotID, INVYR)
+ba_c[, `:=`(census = seq_len(.N), is_last = seq_len(.N) == .N), by = plotID]
+site_rule <- ba_c[, .(n_census = .N, share_out_start_max = max(share_out[!is_last]), share_out_end = share_out[is_last],
+                      share_out_first = share_out[1L]), by = plotID]
+keep_plotIDs <- site_rule[n_census >= 2L & share_out_start_max < PARAMS$out_share_max, plotID]
+message(sprintf("[filter] out-of-S < %.0f %% at every interval-start census: %d -> %d plots; end-census share of the kept plots: < 1 %%: %d, 1-5 %%: %d, > 5 %%: %d",
+                100 * PARAMS$out_share_max, length(pilot_plotIDs), length(keep_plotIDs),
+                site_rule[plotID %in% keep_plotIDs & share_out_end < 0.01, .N], site_rule[plotID %in% keep_plotIDs & share_out_end >= 0.01 & share_out_end <= 0.05, .N],
+                site_rule[plotID %in% keep_plotIDs & share_out_end > 0.05, .N]))
+fwrite(site_rule[, .(siteName = plotID, n_census, share_out_first, share_out_start_max, share_out_end)], file.path(OUT_PREP, "site_out_share.csv"))
 trees_raw <- trees_raw[plotID %in% keep_plotIDs]
 n_before <- nrow(trees_raw)
 trees_raw <- trees_raw[SPCD %in% selected_spcds]

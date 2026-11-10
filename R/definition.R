@@ -27,11 +27,12 @@ variant_definitions = function() {
       patch_size   = 0.01681,
       step_years   = 10L
     ),
-    ## v0.2 Oregon (data oregon-10yr-v2): 27 species, no `other`; the recruitment cap K
-    ## is fixed per species (not trained) and theta is frozen, both carried in the
-    ## parameter list, so the structure is that of v0.1 without `other`
+    ## v0.2 Oregon (data oregon-10yr-v2): the species set S of 18 species under the
+    ## site rule (species outside S < 2 % of basal area at the interval-start
+    ## censuses), no lumped class; the recruitment cap K is fixed per species (not
+    ## trained) and theta is frozen, both carried in the parameter list
     oregon_v02 = list(
-      n_species    = 27L,
+      n_species    = 18L,
       covariates   = c("temp", "prec"),
       formula      = ~ temp + prec,
       hidden       = NULL,
@@ -46,10 +47,12 @@ variant_definitions = function() {
       patch_size   = 0.01681,
       step_years   = 10L
     ),
-    ## v0.2 conterminous US (data conus-annual-v2): the v0.1 structure; K fixed and
-    ## theta frozen in the fit, both carried in the parameter list
+    ## v0.2 conterminous US (data conus-annual-v2): the species set S of 36 species
+    ## under the site rule (species outside S < 2 % of basal area at the interval-
+    ## start censuses); the v0.1 structure otherwise; K fixed and theta frozen in
+    ## the fit, both carried in the parameter list
     conus_v02 = list(
-      n_species    = 20L,
+      n_species    = 36L,
       covariates   = c("tavg_c", "prec_mm", "cwd_z"),
       formula      = ~ tavg_c + prec_mm + cwd_z,
       hidden       = c(20L, 20L),

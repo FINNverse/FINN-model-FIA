@@ -28,7 +28,8 @@ pe_weighted_auc <- function(p, n_pos, n_neg) {
 pe_read_set <- function(d) {
   list(obs = fread(file.path(d, "obs_dt.csv")), env = fread(file.path(d, "env_dt.csv")),
        init = fread(file.path(d, "init_cohort_dt.csv")), species = fread(file.path(d, "species_dt.csv"))[order(species)],
-       trees = if (file.exists(file.path(d, "tree_obs_dt.csv"))) fread(file.path(d, "tree_obs_dt.csv")) else NULL)
+       trees = if (file.exists(file.path(d, "tree_obs_dt.csv"))) fread(file.path(d, "tree_obs_dt.csv")) else NULL,
+       sites = if (file.exists(file.path(d, "siteID_dt.csv"))) fread(file.path(d, "siteID_dt.csv")) else NULL)
 }
 
 ## model: a fitted finn model; d: a set as read by pe_read_set(); step_years: 10 (oregon) or 1 (conus)
@@ -105,6 +106,34 @@ pilot_evaluate <- function(model, d, label, out_dir, n_patches = 4L, patch_size 
   print(out[, .(response, n, rmse = signif(rmse, 3), r2 = signif(r2, 3), spearman = signif(spearman, 3), persistence_r2 = signif(persistence_r2, 3))])
   print(extra)
   invisible(list(metrics = out, summary = extra, predictions = M))
+}
+
+## stratified holdout evaluation by the END-census out-of-S basal-area share of the
+## plot (agreed rule, point 3): bins < 1 %, 1-5 %, > 5 %; per bin the state and change
+## errors and the rate ratios. `M` is the predictions table of pilot_evaluate(),
+## `site_share` the siteID_dt table with the column share_out_end.
+pilot_stratify <- function(M, site_share, out_dir) {
+  if (!"share_out_end" %in% names(site_share)) return(invisible(NULL))
+  M <- merge(M, site_share[, .(siteID, share_out_end)], by = "siteID")
+  M[, stratum := cut(share_out_end, c(-1, 0.01, 0.05, 2), labels = c("end share < 1 %", "1-5 %", "> 5 %"))]
+  T <- M[, .(ba = sum(ba), ba_m = sum(ba_m), ba_p = sum(ba_p), trees = sum(trees), trees_m = sum(trees_m), trees_p = sum(trees_p),
+             deaths = sum(n_died), deaths_m = sum(mort_period_m * n_at_risk, na.rm = TRUE), reg = sum(reg), reg_m = sum(reg_m)), by = .(stratum, siteID, year)]
+  S <- T[, cbind(.(n_plot_census = .N, n_plots = uniqueN(siteID)),
+                 ba_r2 = pe_metric(ba, ba_m)$r2, ba_r2_persist = pe_metric(ba, ba_p)$r2, ba_rmse = pe_metric(ba, ba_m)$rmse,
+                 trees_r2 = pe_metric(trees, trees_m)$r2, trees_r2_persist = pe_metric(trees, trees_p)$r2,
+                 dba_r2 = pe_metric(ba - ba_p, ba_m - ba_p)$r2, dba_obs = mean(ba - ba_p), dba_pred = mean(ba_m - ba_p),
+                 ba_ratio = sum(ba_m) / sum(ba), deaths_ratio = sum(deaths_m) / sum(deaths), reg_ratio = sum(reg_m) / sum(reg)), by = stratum][order(stratum)]
+  fwrite(S, file.path(out_dir, "metrics_by_end_share.csv"))
+  print(S)
+  invisible(S)
+}
+
+## the recruitment dispersion of a v0.1 production fit, mapped onto a new species
+## set by name; species not in the v0.1 fit get the median of the mapped ones
+pe_theta_by_name <- function(theta_v01, species_v01, species_new, bounds = c(0.05, 2)) {
+  th <- theta_v01[match(species_new$species_name, species_v01$species_name)]
+  th[is.na(th)] <- median(th, na.rm = TRUE)
+  pmin(pmax(th, bounds[1]), bounds[2])
 }
 
 ## observed per-species recruitment cap: the q-quantile of the observed recruits per

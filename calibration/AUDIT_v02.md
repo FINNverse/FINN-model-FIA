@@ -35,6 +35,80 @@ Not found: an env-offset error (A), expanded sample sizes (`n_at_risk`, `growth_
 - **Mortality target.** Closed cohort of the trees alive at the interval start (`n_at_risk`), deaths of any natural cause including fire, insects, weather; disturbed intervals are in the data (FINN-fia dropped them in its later paper fits; the tool keeps them, so the mortality it learns includes background disturbance).
 - **Interval and env.** Annual conus: env rows 1..23 per plot, census at the simulated year of the plot's own interval; Oregon: one env row per 10-year step. Verified per site (A).
 
+## 2b. Species set and site rule (agreed rare-species rule, 2026-11-10)
+
+No lumped `other` class. A plot is kept when the species outside the modelled set S
+hold < x % of its basal area at the START census of every interval (never the end
+census, which would select on the outcome); the end-census share is recorded per plot
+and the validation is stratified by it (bins < 1 %, 1-5 %, > 5 %). Trees outside S on
+kept plots are dropped (option (a)). Option (b), one fixed shade-only out-of-S class,
+is NOT available through the FINN interface: `optimizeSpecies` / `optimizeEnv` act on a
+whole process, not on one species row, there is no per-species gradient mask, and a
+class with NA observations still recruits through the per-species floor (no
+`regen_mask` in 0848b60); it would need a FINN change (proposal in the notes), so x is
+kept at 2 %, where the competition error of the dropped trees is small.
+
+Trade-off (`calibration/v02/species_tradeoff.R`, start census only; blocks and climate
+cells as in the v1 preparations; pool = plots with four consistently sampled subplots):
+
+| variant | x | candidate S | plots kept (share of pool) | plots in held-out blocks | held-out blocks populated | climate cells covered | tavg / prec 5-95 % span | weakest species: plots / trees / held-out blocks / span | species below the coverage thresholds |
+|---|---|---|---|---|---|---|---|---|---|
+| conus | 1 % | top 20 (v0.1 set) | 6 666 (22 %) | 1 610 | 33 / 54 | 0.39 | 0.63 / 0.66 | 23 / 74 / 2 / 0.25 | 17 of 20 |
+| conus | 2 % | top 20 | 6 982 (23 %) | 1 655 | 35 / 54 | 0.41 | 0.63 / 0.69 | 35 / 107 / 2 / 0.27 | 16 |
+| conus | 5 % | top 20 | 7 748 (26 %) | 1 813 | 36 / 54 | 0.46 | 0.63 / 0.73 | 60 / 173 / 4 / 0.29 | 14 |
+| conus | 1 % | top 40 | 12 596 (42 %) | 2 740 | 42 / 54 | 0.57 | 0.95 / 0.76 | 39 / 170 / 1 / 0.22 | 33 of 40 (strict thresholds) |
+| conus | 2 % | top 40 | 13 193 (44 %) | 2 805 | 43 / 54 | 0.59 | 0.95 / 0.77 | 50 / 219 / 1 / 0.22 | 32 |
+| conus | 2 % | top 65 | 18 048 (61 %) | 3 755 | 46 / 54 | 0.71 | 0.92 / 0.81 | 135 / 248 / 0 / 0.22 | 49 of 65 |
+| **conus** | **1 %** | **S = 36 (chosen)** | 12 378 (41 %) | 2 694 | 37 / 54 | 0.54 | 0.95 / 0.75 | 116 / 287 / 1 / 0.22 | 2 |
+| **conus** | **2 %** | **S = 36 (chosen)** | **12 950 (43 %)** | **2 756** | **39 / 54** | **0.56** | **0.93 / 0.76** | **146 / 392 / 1 / 0.22** | **1** |
+| conus | 3 % | S = 36 | 13 436 (45 %) | 2 818 | 39 / 54 | 0.58 | 0.91 / 0.77 | 177 / 478 / 1 / 0.22 | 1 |
+| conus | 5 % | S = 36 | 14 262 (48 %) | 2 945 | 39 / 54 | 0.61 | 0.90 / 0.79 | 240 / 661 / 1 / 0.22 | 0 |
+| oregon | 2 % | all 27 export species | 694 (90 %) | 124 | 6 / 6 | 0.82 | 0.98 / 1.00 | 5 / 24 / 0 / 0.11 | 9 of 27 |
+| oregon | 2 % | top 20 | 642 (83 %) | 122 | 6 / 6 | 0.77 | 0.94 / 1.00 | 15 / 47 / 0 / 0.27 | 3 |
+| oregon | 2 % | top 16 | 590 (76 %) | 111 | 6 / 6 | 0.75 | 0.94 / 0.99 | 18 / 40 / 1 / 0.31 | 1 |
+| **oregon** | **1 %** | **S = 18 (chosen)** | 601 (78 %) | 120 | 6 / 6 | 0.75 | 0.92 / 1.00 | 15 / 46 / 1 / 0.30 | 1 |
+| **oregon** | **2 %** | **S = 18 (chosen)** | **620 (80 %)** | **122** | **6 / 6** | **0.75** | **0.93 / 1.00** | **15 / 47 / 1 / 0.30** | **1** |
+| oregon | 5 % | S = 18 | 647 (83 %) | 124 | 6 / 6 | 0.75 | 0.94 / 1.00 | 16 / 47 / 1 / 0.31 | 1 |
+
+Full table incl. x = 3 % and |S| = 10, 15, 25, 30, 50: `calibration/v02/species_tradeoff.csv`;
+per-species counts: `species_identifiability_<variant>.csv`.
+
+**Choice (a coverage choice, not a measured identifiability limit).** S = the species of
+the candidate set that, on the plots kept at x = 2 %, have at least k plots, m trees at
+the start census, presence in n held-out blocks and a temperature span of at least a
+fraction of the pool's range: conus k = 100, m = 500, n = 1, span 0.2 applied to the
+top-40 set -> 36 species (dropped: Ulmus americana 234 trees, Liquidambar styraciflua 52
+plots, Quercus stellata 91 plots, Fraxinus pennsylvanica 50 plots); Oregon k = 10, m = 50,
+n = 1, span 0.1 applied to the 27 export species -> 18 (dropped: nine species on 5-24
+plots with no presence in a held-out block, among them Lithocarpus, Picea sitchensis,
+Quercus garryana). Re-selecting the plots with exactly S leaves one weak species per
+variant (conus: 392 start-census trees on 146 plots; Oregon: 15 plots / 47 trees), kept
+because they sit in one held-out block and will get a holdout error of their own.
+
+Why S = 36 and not the v0.1 20 for conus: the larger set doubles the plots that meet the
+rule (12 950 vs 6 982 at 2 %), raises the populated held-out blocks from 35 to 39 of 54
+and the climate cells covered from 0.41 to 0.56 (temperature span 0.63 -> 0.93: the
+southern pines and oaks, the northern hardwoods and the Great Basin conifers enter), and
+every one of the v0.1 species gets more plots (Quercus alba 655 -> 1 618 at |S| = 65).
+Why x = 2 %: it is the smallest threshold at which the held-out block coverage is at its
+plateau (37 -> 39 -> 39 -> 39 blocks for x = 1, 2, 3, 5 %) with the climate span
+unchanged, and without option (b) the dropped out-of-S trees must stay a negligible
+competitor (<= 2 % of basal area). Oregon: x makes little difference (601-647 plots);
+2 % for the same reason. Population claim for the cards: conus 43 % of the four-subplot
+cohort plots, Oregon 80 % of the export's plots meet the rule at the interval-start
+censuses.
+
+Data versions built under the rule: `oregon-10yr-v2` (561 plots after makeObsData and
+the empty-start-plot filter: 450 train / 111 holdout; end-census out-of-S share of the
+kept plots: 601 below 1 %, 21 at 1-5 %, 3 above 5 %) and `conus-annual-v2` via
+`annual-v7-S36`: the rule at every interval-start census keeps 12 550 of the 29 847
+four-subplot plots (end-census share: 11 511 below 1 %, 664 at 1-5 %, 375 above 5 %),
+9 268 plots after makeObsData, the land-use and the span/climate filters (v0.1: 4 954),
+173 two-degree blocks with 35 held out (seed 21; a new draw, the block set changed with
+the plots), train 1 500 / holdout 1 000 plots (57 772 / 33 836 tree intervals). Both
+`siteID_dt.csv` carry the shares (`share_out_first`, `share_out_start_max`,
+`share_out_end`).
+
 ## 3. Candidate settings and the hypotheses they test
 
 | pilot | data | change vs the previous pilot | hypothesis (audit finding) |

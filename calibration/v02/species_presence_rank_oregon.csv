@@ -1,0 +1,29 @@
+species_name,n_plots,rank
+Pseudotsuga menziesii,481,1
+Pinus ponderosa,343,2
+Pinus contorta,241,3
+Abies grandis,171,4
+Tsuga heterophylla,155,5
+Abies concolor,106,6
+Larix occidentalis,92,7
+Alnus rubra,77,8
+Thuja plicata,64,9
+Acer macrophyllum,59,10
+Calocedrus decurrens,58,11
+Picea engelmannii,51,12
+Tsuga mertensiana,50,13
+Abies amabilis,45,14
+Pinus monticola,44,15
+Abies lasiocarpa,41,16
+Juniperus occidentalis,36,17
+Chrysolepis chrysophylla var. chrysophylla,35,18
+Arbutus menziesii,32,19
+Abies procera,24,20
+Abies shastensis,22,21
+Lithocarpus densiflorus,19,22
+Pinus lambertiana,17,23
+Picea sitchensis,14,24
+Quercus chrysolepis,9,25
+Quercus kelloggii,7,26
+Quercus garryana,6,27
+other,138,28

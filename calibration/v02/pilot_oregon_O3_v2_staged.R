@@ -1,8 +1,8 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
 ## FINN-model-FIA | calibration/v02/pilot_oregon_O3_v2_staged.R
 ##
-## WHAT   Pilot O3 = O2 (data v2 without `other`, fixed data-derived
-##        recruitment cap, frozen dispersion, cosine lr) fitted in STAGES
+## WHAT   Pilot O3 = O2 (data oregon-10yr-v2, fixed data-derived recruitment
+##        cap, frozen dispersion, cosine lr) fitted in STAGES
 ##        instead of one joint run (brief trap 9, loss competition: in the
 ##        v0.1 joint fit the state losses pulled the regeneration parameters
 ##        -- `other` and the firs received the recruits -- while the mortality
@@ -47,7 +47,9 @@ n_species <- nrow(train$species)
 K_cap <- pe_reg_cap(train$obs, train$species, q = PARAMS$cap_quantile, factor = PARAMS$cap_factor, floor_cap = PARAMS$cap_floor, per_step = 1)
 m01 <- build_model(PARAMS$theta_source, torch_load(file.path(DATA_DIR, "fits", PARAMS$theta_source, "parameters.pt")),
                    env_scaling = as.data.frame(fread(file.path("calibration", PARAMS$theta_source, "env_scaling.csv"))))
-theta0 <- pmin(pmax(as.numeric(as_array(m01$par_theta_recruits))[seq_len(n_species)], PARAMS$theta_bounds[1]), PARAMS$theta_bounds[2])
+theta0 <- pe_theta_by_name(as.numeric(as_array(m01$par_theta_recruits)),
+                           fread(file.path(DATA_DIR, "prepared", "oregon-10yr-v1", "train_blocked", "species_dt.csv"))[order(species)],
+                           train$species, PARAMS$theta_bounds)                 # v0.1 theta mapped by species name onto S
 
 FINN.seed(PARAMS$seed)
 model <- finn(
@@ -97,6 +99,7 @@ se <- train$env[, .(temp = mean(temp), prec = mean(prec)), by = siteID][order(te
 bare <- se[round(quantile(seq_len(.N), c(0.1, 0.5, 0.9))), .(siteID = .I, temp, prec)]
 res <- pilot_evaluate(model, hold, LABEL, OUT, n_patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, step_years = 10L,
                       bare_env = bare, bare_years = PARAMS$bare_steps, bare_patches = PARAMS$bare_patches)
+pilot_stratify(res$predictions, hold$sites, OUT)
 theta <- as.numeric(as_array(model$par_theta_recruits))
 res$summary[, `:=`(minutes = round(minutes, 1), epochs = PARAMS$epochs_A + PARAMS$epochs_B, K_median = median(K_cap), K_max = max(K_cap), theta_median = median(theta),
                    loss_last = paste(sprintf("%s %.3f", names(lh)[1:6], as.numeric(lh[.N, 1:6])), collapse = " "))]

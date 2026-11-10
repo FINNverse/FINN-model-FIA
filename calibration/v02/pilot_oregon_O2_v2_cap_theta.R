@@ -1,15 +1,12 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
 ## FINN-model-FIA | calibration/v02/pilot_oregon_O2_v2_cap_theta.R
 ##
-## WHAT   Pilot O2 = O1 (fixed data-derived recruitment cap, cosine lr) with
-##        two more changes, each tied to an audit finding:
-##        1. DATA v2 (oregon-10yr-v2, calibration/v02/prepare_oregon_v2.R): the
-##           lumped `other` class is dropped (audit G: 1 % of the observed
-##           basal area and recruits, 27 % of the v0.1 predicted recruits).
-##        2. FROZEN RECRUITMENT DISPERSION (brief trap 7): the per-species NB
-##           theta is set from the v0.1 production fit (its ML-like values,
-##           median 0.08) clipped to [0.05, 2] and not trained, so the
-##           regeneration loss cannot flatten itself by letting theta fall.
+## WHAT   Pilot O2 = O1 (fixed data-derived recruitment cap, cosine lr, data
+##        oregon-10yr-v2 as every pilot) with ONE more change:
+##        FROZEN RECRUITMENT DISPERSION (brief trap 7): the per-species NB theta
+##        is set from the v0.1 production fit (its ML-like values, median 0.08,
+##        mapped onto S by species name) clipped to [0.05, 2] and not trained,
+##        so the regeneration loss cannot flatten itself by letting theta fall.
 ##        Everything else as O1.
 ## RUN    Rscript calibration/v02/pilot_oregon_O2_v2_cap_theta.R   (repo root, ~15 min, one thread)
 ## OUTPUT calibration/v02/pilots/oregon_O2_v2_cap_theta/
@@ -46,7 +43,9 @@ K_cap <- pe_reg_cap(train$obs, train$species, q = PARAMS$cap_quantile, factor = 
 ## theta of the v0.1 fit (28 species incl. other; v2 keeps species 1..27 with the same codes)
 m01 <- build_model(PARAMS$theta_source, torch_load(file.path(DATA_DIR, "fits", PARAMS$theta_source, "parameters.pt")),
                    env_scaling = as.data.frame(fread(file.path("calibration", PARAMS$theta_source, "env_scaling.csv"))))
-theta0 <- pmin(pmax(as.numeric(as_array(m01$par_theta_recruits))[seq_len(n_species)], PARAMS$theta_bounds[1]), PARAMS$theta_bounds[2])
+theta0 <- pe_theta_by_name(as.numeric(as_array(m01$par_theta_recruits)),
+                           fread(file.path(DATA_DIR, "prepared", "oregon-10yr-v1", "train_blocked", "species_dt.csv"))[order(species)],
+                           train$species, PARAMS$theta_bounds)                 # v0.1 theta mapped by species name onto S
 message("theta (frozen): ", paste(sprintf("%s %.3f", train$species$species_name, theta0), collapse = ", "))
 
 FINN.seed(PARAMS$seed)
@@ -75,6 +74,7 @@ se <- train$env[, .(temp = mean(temp), prec = mean(prec)), by = siteID][order(te
 bare <- se[round(quantile(seq_len(.N), c(0.1, 0.5, 0.9))), .(siteID = .I, temp, prec)]
 res <- pilot_evaluate(model, hold, LABEL, OUT, n_patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, step_years = 10L,
                       bare_env = bare, bare_years = PARAMS$bare_steps, bare_patches = PARAMS$bare_patches)
+pilot_stratify(res$predictions, hold$sites, OUT)
 theta <- as.numeric(as_array(model$par_theta_recruits))
 res$summary[, `:=`(minutes = round(minutes, 1), epochs = PARAMS$epochs, K_median = median(K_cap), K_max = max(K_cap), theta_median = median(theta),
                    loss_last = paste(sprintf("%s %.3f", names(lh)[1:6], as.numeric(lh[.N, 1:6])), collapse = " "))]

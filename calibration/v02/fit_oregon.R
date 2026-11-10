@@ -31,6 +31,7 @@
 .libPaths(c("~/R/lib-finn-0848b60", .libPaths()))
 suppressPackageStartupMessages({ library(FINN); library(data.table); library(torch) })
 source(file.path("R", "definition.R"))
+source(file.path("calibration", "v02", "pilot_eval.R"))   # generic helpers: the theta-by-name mapping and the metric functions
 torch_set_num_threads(1L)
 ## torch >= 0.14 has the faster ignite Adam (FINN's default); the cluster's torch 0.13 falls back to optim_adam
 OPTIMIZER <- if (exists("optim_ignite_adam", envir = asNamespace("torch"))) torch::optim_ignite_adam else torch::optim_adam
@@ -66,7 +67,9 @@ cap <- merge(species[, .(species, species_name)], cap, by = "species", all.x = T
 fwrite(cap, file.path(CAL_DIR, "reg_cap.csv"))
 m01 <- build_model(PARAMS$theta_source, torch_load(file.path(DATA_DIR, "fits", PARAMS$theta_source, "parameters.pt")),
                    env_scaling = as.data.frame(fread(file.path("calibration", PARAMS$theta_source, "env_scaling.csv"))))
-theta0 <- pmin(pmax(as.numeric(as_array(m01$par_theta_recruits))[seq_len(n_species)], PARAMS$theta_bounds[1]), PARAMS$theta_bounds[2])
+theta0 <- pe_theta_by_name(as.numeric(as_array(m01$par_theta_recruits)),
+                           fread(file.path(DATA_DIR, "prepared", "oregon-10yr-v1", "train_blocked", "species_dt.csv"))[order(species)],
+                           species, PARAMS$theta_bounds)                       # v0.1 theta mapped by species name onto S
 message(sprintf("train: %d sites, %d species; K cap median %.0f (max %.0f) per ha per decade; theta median %.3f",
                 uniqueN(obs$siteID), n_species, median(cap$cap), max(cap$cap), median(theta0)))
 

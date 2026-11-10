@@ -2,9 +2,12 @@
 ## FINN-model-FIA | calibration/v02/prepare_conus_v2.R   (variant "conus", data v2, step B)
 ##
 ## V0.2 DATA (2026-11-10): copy of calibration/conus/09_prepare_conus.R reading
-##        `annual-v6-ingrowth` (calibration/v02/prepare_conus_v2_annual.R, the
-##        complete ingrowth target) instead of `annual-v5`, and writing
-##        `conus-annual-v2`. Nothing else changes. The step-9 header follows.
+##        `annual-v7-S36` (calibration/v02/prepare_conus_v2_annual.R: the 36-species
+##        set S, the < 2 % out-of-S site rule at every interval-start census, the
+##        complete ingrowth target) instead of `annual-v5`, writing
+##        `conus-annual-v2`, and carrying each plot's out-of-S basal-area shares
+##        (first census, maximum over the interval-start censuses, end census)
+##        into siteID_dt.csv for the stratified validation. The step-9 header follows.
 ##
 ## WHAT   Turns the prepared set `annual-v5` written by step 8 (conterminous
 ##        US, 20 species, annual time step, per-site remeasurement intervals,
@@ -55,7 +58,7 @@ DATA_DIR <- {
 }
 
 PARAMS <- list(
-  source_version = "annual-v6-ingrowth",    # v0.2: step 8 with the complete ingrowth target
+  source_version = "annual-v7-S36",         # v0.2: S = 36 species, < 2 % out-of-S rule, complete ingrowth target
   prep_version   = "conus-annual-v2",
   sets           = c(train = "train1500", holdout = "holdout_blocked"),
   ## the model's covariates (yearly TerraClimate per plot): mean annual
@@ -98,6 +101,11 @@ for (nm in names(PARAMS$sets)) {
   i  <- init[, .(siteID, patchID, species, dbh, trees, treeName, species_name, living, status)]
   site_key <- unique(ids[, .(siteID, siteName)])
   site_key <- merge(site_key, unique(envu[, .(siteID, lon = x, lat = y)]), by = "siteID")
+  ## v0.2: the out-of-S basal-area shares per plot (first census, max over the
+  ## interval-start censuses, end census) for the stratified validation
+  shares <- fread(file.path(SRC, "site_out_share.csv"))
+  site_key <- merge(site_key, shares[, .(siteName, share_out_first, share_out_start_max, share_out_end)], by = "siteName", all.x = TRUE)
+  stopifnot(!anyNA(site_key$share_out_end))
   setorder(site_key, siteID)
 
   fwrite(o, file.path(d, "obs_dt.csv")); fwrite(e, file.path(d, "env_dt.csv"))

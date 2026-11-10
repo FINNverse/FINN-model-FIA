@@ -3,10 +3,8 @@
 ##
 ## WHAT   Pilot C1 = C0 (same 300 + 200 pilot plots, same model) with the
 ##        settings changed that the audit motivates:
-##        1. DATA v2 (conus-annual-v2, calibration/v02/prepare_conus_v2*.R): the
-##           recruitment target is the complete ingrowth into 12.7 cm (audit B:
-##           v0.1 missed the 8 % tracked from the microplot and double-counted
-##           re-recorded trees; train +3.6 %, holdout -4.4 %).
+##        1. (data conus-annual-v2 as every pilot: 36 species under the agreed
+##           rare-species rule and the complete ingrowth target, audit B)
 ##        2. FIXED RECRUITMENT CAP (brief trap 8): K per species fixed at 2 x the
 ##           95th percentile of the observed annual recruits per ha of that
 ##           species (floor 2 per ha per year) instead of a trainable K
@@ -47,7 +45,7 @@ PARAMS <- list(
 subset_set <- function(d, n, seed) {
   set.seed(seed); ids <- sort(sample(unique(d$obs$siteID), n)); map <- data.table(siteID = ids, new = seq_along(ids))
   ren <- function(x) { x <- merge(x[siteID %in% ids], map, by = "siteID"); x[, siteID := new][, new := NULL]; setcolorder(x, "siteID"); x[] }
-  list(obs = ren(d$obs), env = ren(d$env), init = ren(d$init), trees = ren(d$trees), species = d$species)
+  list(obs = ren(d$obs), env = ren(d$env), init = ren(d$init), trees = ren(d$trees), species = d$species, sites = ren(d$sites))
 }
 train <- subset_set(pe_read_set(file.path(DATA_DIR, "prepared", PARAMS$prep_version, PARAMS$train_set)), PARAMS$n_pilot_train, PARAMS$seed_train)
 hold  <- subset_set(pe_read_set(file.path(DATA_DIR, "prepared", PARAMS$prep_version, PARAMS$holdout_set)), PARAMS$n_pilot_holdout, PARAMS$seed_holdout)
@@ -56,7 +54,9 @@ obs_annual <- copy(train$obs)[, reg := reg / period_length]
 K_cap <- pe_reg_cap(obs_annual, train$species, q = PARAMS$cap_quantile, factor = PARAMS$cap_factor, floor_cap = PARAMS$cap_floor, per_step = 1)
 m01 <- build_model(PARAMS$theta_source, torch_load(file.path(DATA_DIR, "fits", PARAMS$theta_source, "parameters.pt")),
                    env_scaling = as.data.frame(fread(file.path("calibration", PARAMS$theta_source, "env_scaling.csv"))))
-theta0 <- pmin(pmax(as.numeric(as_array(m01$par_theta_recruits)), PARAMS$theta_bounds[1]), PARAMS$theta_bounds[2])
+theta0 <- pe_theta_by_name(as.numeric(as_array(m01$par_theta_recruits)),
+                           fread(file.path(DATA_DIR, "prepared", "conus-annual-v1", "train", "species_dt.csv"))[order(species)],
+                           train$species, PARAMS$theta_bounds)                 # v0.1 theta mapped by species name onto S (median for new species)
 message("K cap (per ha per year): ", paste(sprintf("%s %.1f", train$species$species_name, K_cap), collapse = ", "))
 
 FINN.seed(PARAMS$seed)
@@ -87,6 +87,7 @@ se <- train$env[, .(tavg_c = mean(tavg_c), prec_mm = mean(prec_mm)), by = siteID
 bare <- se[round(quantile(seq_len(.N), c(0.1, 0.5, 0.9))), .(siteID = .I, tavg_c, prec_mm, cwd_z = 0)]
 res <- pilot_evaluate(model, hold, LABEL, OUT, n_patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, step_years = 1L,
                       bare_env = bare, bare_years = PARAMS$bare_years, bare_patches = PARAMS$bare_patches, batchsize = 100L)
+pilot_stratify(res$predictions, hold$sites, OUT)
 theta <- as.numeric(as_array(model$par_theta_recruits))
 res$summary[, `:=`(minutes = round(minutes, 1), epochs = PARAMS$epochs, K_median = median(K_cap), K_max = max(K_cap), theta_median = median(theta),
                    loss_last = paste(sprintf("%s %.3f", names(lh)[1:6], as.numeric(lh[.N, 1:6])), collapse = " "))]

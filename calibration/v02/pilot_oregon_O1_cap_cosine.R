@@ -13,7 +13,7 @@
 ##        2. COSINE LEARNING-RATE DECAY (audit F: the v0.1 losses jumped in the
 ##           last fifth, dbh 0.29 -> 0.97, and no parameter block had settled),
 ##           lr 0.01 annealed to 0 over the run.
-##        Data, species (27 + other), losses, epochs as O0.
+##        Data (oregon-10yr-v2, 18 species), losses, epochs as O0.
 ## RUN    Rscript calibration/v02/pilot_oregon_O1_cap_cosine.R   (repo root, ~15 min, one thread)
 ## OUTPUT calibration/v02/pilots/oregon_O1_cap_cosine/
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
@@ -28,7 +28,7 @@ DATA_DIR <- normalizePath(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.
 LABEL <- "oregon_O1_cap_cosine"; OUT <- file.path("calibration", "v02", "pilots", LABEL); dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 PARAMS <- list(
-  prep_version = "oregon-10yr-v1", train_set = "train_blocked", holdout_set = "holdout_blocked",
+  prep_version = "oregon-10yr-v2", train_set = "train_blocked", holdout_set = "holdout_blocked",   # v0.2 data (as every pilot)
   patch_size_ha = 0.01681, n_patches = 4L, recruits_dbh = 12.9,
   env_formula = ~ temp + prec, hidden = NULL,
   cap_quantile = 0.95, cap_factor = 2, cap_floor = 20,   # K fixed at 2 x q95 of the observed recruits per ha per decade, floor 20
@@ -69,6 +69,7 @@ se <- train$env[, .(temp = mean(temp), prec = mean(prec)), by = siteID][order(te
 bare <- se[round(quantile(seq_len(.N), c(0.1, 0.5, 0.9))), .(siteID = .I, temp, prec)]
 res <- pilot_evaluate(model, hold, LABEL, OUT, n_patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, step_years = 10L,
                       bare_env = bare, bare_years = PARAMS$bare_steps, bare_patches = PARAMS$bare_patches)
+pilot_stratify(res$predictions, hold$sites, OUT)
 theta <- as.numeric(as_array(model$par_theta_recruits))
 res$summary[, `:=`(minutes = round(minutes, 1), epochs = PARAMS$epochs, K_median = median(K_cap), K_max = max(K_cap), theta_median = median(theta),
                    loss_last = paste(sprintf("%s %.3f", names(lh)[1:6], as.numeric(lh[.N, 1:6])), collapse = " "))]

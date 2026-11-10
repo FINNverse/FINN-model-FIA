@@ -1,13 +1,15 @@
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
 ## FINN-model-FIA | calibration/v02/pilot_conus_C0_v01.R
 ##
-## WHAT   Pilot C0, the REFERENCE: the v0.1 CONUS model (calibration/conus/
-##        02_fit.R) on the fixed PILOT SUBSET (300 training plots drawn from
-##        conus-annual-v1/train with seed 7, 200 holdout plots from
-##        conus-annual-v1/holdout with seed 8), 250 epochs, one thread, scored
-##        with the pilot evaluation (holdout against persistence, change
-##        metrics, per-tree AUC and growth R2, recruitment ratio, 300-year
-##        bare-ground run). The other conus pilots use the same plots.
+## WHAT   Pilot C0, the REFERENCE: the v0.1 CONUS model settings (calibration/
+##        conus/02_fit.R) on the v0.2 DATA (conus-annual-v2: 36 species under the
+##        agreed rare-species rule, complete ingrowth target) and the fixed
+##        PILOT SUBSET (300 training plots drawn from its train set with seed 7,
+##        200 holdout plots from its holdout set with seed 8), 250 epochs, one
+##        thread, scored with the pilot evaluation (holdout against persistence,
+##        change metrics, per-tree AUC and growth R2, recruitment ratio,
+##        300-year bare-ground run, errors stratified by the end-census out-of-S
+##        share). The other conus pilots use the same plots and data.
 ## RUN    Rscript calibration/v02/pilot_conus_C0_v01.R   (repo root, ~40 min, one thread)
 ## OUTPUT calibration/v02/pilots/conus_C0_v01/
 #=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
@@ -22,7 +24,7 @@ DATA_DIR <- normalizePath(c(file.path("..", "..", "FINN-zoo-data", "fia"), file.
 LABEL <- "conus_C0_v01"; OUT <- file.path("calibration", "v02", "pilots", LABEL); dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 PARAMS <- list(
-  prep_version = "conus-annual-v1", train_set = "train", holdout_set = "holdout",
+  prep_version = "conus-annual-v2", train_set = "train", holdout_set = "holdout",   # v0.2 data: S = 36 species, < 2 % out-of-S site rule (every pilot uses it)
   n_pilot_train = 300L, seed_train = 7L, n_pilot_holdout = 200L, seed_holdout = 8L,   # the fixed pilot subset
   patch_size_ha = 0.01681, n_patches = 4L, recruits_dbh = 12.9,
   env_formula = ~ tavg_c + prec_mm + cwd_z, hidden = c(20L, 20L), dropout = 0.1,
@@ -38,7 +40,7 @@ PARAMS <- list(
 subset_set <- function(d, n, seed) {
   set.seed(seed); ids <- sort(sample(unique(d$obs$siteID), n)); map <- data.table(siteID = ids, new = seq_along(ids))
   ren <- function(x) { x <- merge(x[siteID %in% ids], map, by = "siteID"); x[, siteID := new][, new := NULL]; setcolorder(x, "siteID"); x[] }
-  list(obs = ren(d$obs), env = ren(d$env), init = ren(d$init), trees = ren(d$trees), species = d$species)
+  list(obs = ren(d$obs), env = ren(d$env), init = ren(d$init), trees = ren(d$trees), species = d$species, sites = ren(d$sites))
 }
 train <- subset_set(pe_read_set(file.path(DATA_DIR, "prepared", PARAMS$prep_version, PARAMS$train_set)), PARAMS$n_pilot_train, PARAMS$seed_train)
 hold  <- subset_set(pe_read_set(file.path(DATA_DIR, "prepared", PARAMS$prep_version, PARAMS$holdout_set)), PARAMS$n_pilot_holdout, PARAMS$seed_holdout)
@@ -70,6 +72,7 @@ se <- train$env[, .(tavg_c = mean(tavg_c), prec_mm = mean(prec_mm)), by = siteID
 bare <- se[round(quantile(seq_len(.N), c(0.1, 0.5, 0.9))), .(siteID = .I, tavg_c, prec_mm, cwd_z = 0)]
 res <- pilot_evaluate(model, hold, LABEL, OUT, n_patches = PARAMS$n_patches, patch_size = PARAMS$patch_size_ha, step_years = 1L,
                       bare_env = bare, bare_years = PARAMS$bare_years, bare_patches = PARAMS$bare_patches, batchsize = 100L)
+pilot_stratify(res$predictions, hold$sites, OUT)
 K <- exp(as.numeric(as_array(model$reg_logK))); theta <- as.numeric(as_array(model$par_theta_recruits))
 res$summary[, `:=`(minutes = round(minutes, 1), epochs = PARAMS$epochs, K_median = median(K), K_max = max(K), theta_median = median(theta),
                    loss_last = paste(sprintf("%s %.3f", names(lh)[1:6], as.numeric(lh[.N, 1:6])), collapse = " "))]
