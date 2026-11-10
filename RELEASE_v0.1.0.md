@@ -5,8 +5,11 @@ after the go. All commands from the repository root.
 
 ## Commit to tag
 
-`5733369` on `main` ("FINNmodelFIA 0.1.0: version, FINN pinned at 0848b60, ...").
-It is the v0.1 package (`R/`, `inst/model/`, `DESCRIPTION` 0.1.0, vignette);
+`216c5fb` on `main` ("WorldClim licence stated correctly ..."), which follows the
+release commit `5733369` ("FINNmodelFIA 0.1.0: version, FINN pinned at 0848b60,
+...") and corrects the WorldClim licence wording in README, NEWS, PROVENANCE and
+the release notes (WorldClim is not CC BY-SA 4.0: free for academic and other
+non-commercial use, rasters not redistributed). It is the v0.1 package (`R/`, `inst/model/`, `DESCRIPTION` 0.1.0, vignette);
 `calibration/` (incl. the v0.2 work in `calibration/v02/`), `hpc/` and this
 file are excluded from the build by `.Rbuildignore`. `R/definition.R` also
 carries the v0.2 variant definitions `oregon_v02` / `conus_v02`; they are not in
@@ -43,7 +46,7 @@ shasum -a 256 ../../FINN-zoo-data/fia/fits/oregon/parameters_oregon.pt ../../FIN
                ../../FINN-zoo-data/fia/fits/conus/parameters_conus.pt  ../../FINN-zoo-data/fia/fits/conus/model_conus.pt
 
 # 1. tag the release commit
-git tag -a v0.1.0 5733369 -m "FINNmodelFIA 0.1.0: first fitted release (variants oregon and conus), FINN 0.2.0 commit 0848b60"
+git tag -a v0.1.0 216c5fb -m "FINNmodelFIA 0.1.0: first fitted release (variants oregon and conus), FINN 0.2.0 commit 0848b60"
 
 # 2. push main and the tag
 git push origin main
