@@ -102,9 +102,19 @@ variant_definitions = function() {
 #'   standardisation FINN learned from the training environment
 #'   (`env_autoscale = TRUE`). `NULL` reads it from the package's
 #'   `inst/model/covariates.csv`.
+#' @param version Structure of the parameter file: `"v0.1"` (the structure
+#'   written out below, the released v0.1 files), `"v0.2-recipe"` (the zoo v0.2
+#'   recipe, [build_model_v02()]; `variant` picks the env columns of the yml) or
+#'   `"auto"` (the default: the recipe when the file's `settings$recipe` tag
+#'   says so, v0.1 otherwise).
 #' @return A fitted `FINN` model in evaluation mode.
 #' @keywords internal
-build_model = function(variant, parameters, env_scaling = NULL) {
+build_model = function(variant, parameters, env_scaling = NULL, version = c("auto", "v0.1", "v0.2-recipe")) {
+  version = match.arg(version)
+  ## the structure switch: a zoo v0.2 recipe file describes itself through its
+  ## settings$recipe tag (R/recipe_v02.R); everything else is the v0.1 structure below
+  if (version == "auto") version = if (is_recipe_v02(parameters)) "v0.2-recipe" else "v0.1"
+  if (version == "v0.2-recipe") return(build_model_v02(parameters, variant = if (missing(variant)) NULL else variant))
   defs = variant_definitions()
   if (!variant %in% names(defs))
     stop("Unknown variant '", variant, "'; available: ", paste(names(defs), collapse = ", "), call. = FALSE)
