@@ -37,7 +37,8 @@ provenance of every raw layer, and the summary of the prepared data a rerun is d
 against).
 
 License: GPL (>= 3) for code and fitted parameters; the calibration data keep the
-license of their source (FIA: US Government work, public domain / CC0 1.0; WorldClim 2.1:
-CC BY-SA 4.0, Fick & Hijmans 2017, doi:10.1002/joc.5086; TerraClimate: public domain),
-see `calibration/PROVENANCE.md`. The raw data are not redistributed here; `calibration/`
-downloads them from the source.
+license of their source (FIA: US Government work, public domain / CC0 1.0; TerraClimate:
+public domain), see `calibration/PROVENANCE.md`. Climate normals: WorldClim 2.1 (Fick &
+Hijmans 2017, doi:10.1002/joc.5086), free for academic and other non-commercial use; the
+rasters are not redistributed, only values extracted at the plot locations are included.
+The raw data are not redistributed here; `calibration/` downloads them from the source.

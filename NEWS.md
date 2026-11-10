@@ -52,7 +52,10 @@ FIADB download (WorldClim 2.1, TerraClimate), with provenance and checksums of e
 raw layer, and reproduces the FINN-fia tables byte for byte.
 
 Licences: code and fitted parameters GPL (>= 3); FIA data public domain (CC0 1.0),
-TerraClimate public domain, WorldClim 2.1 CC BY-SA 4.0 (`calibration/PROVENANCE.md`).
+TerraClimate public domain (`calibration/PROVENANCE.md`). Climate normals: WorldClim 2.1
+(Fick & Hijmans 2017, doi:10.1002/joc.5086), free for academic and other non-commercial
+use; the rasters are not redistributed, only values extracted at the plot locations are
+included.
 
 # FINNmodelFIA (development)
 

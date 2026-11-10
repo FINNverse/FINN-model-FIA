@@ -29,8 +29,11 @@ REF_SPECIES) and `oregon/01_prepare.R` (PLOT, for the Oregon plot coordinates).
 ## 2. WorldClim 2.1, 1970-2000 normals, 30 arc-seconds (both variants)
 
 Source: <https://www.worldclim.org/data/worldclim21.html> (bioclimatic variables,
-30 s; the bundle `wc2.1_30s_bio.zip`, 10,401,038,857 bytes). Licence: CC BY-SA 4.0,
-attribution Fick, S.E. & Hijmans, R.J. (2017) *Int. J. Climatol.* 37, 4302-4315. Rasters
+30 s; the bundle `wc2.1_30s_bio.zip`, 10,401,038,857 bytes). Licence: WorldClim's own
+terms, free for academic and other non-commercial use, no redistribution without
+permission (https://www.worldclim.org/about.html); the rasters are not redistributed,
+only values extracted at the plot locations are included. Attribution Fick, S.E. &
+Hijmans, R.J. (2017) *Int. J. Climatol.* 37, 4302-4315, doi:10.1002/joc.5086. Rasters
 dated 2019-02-28; bundle pulled 2025-09-09. Expected under `raw/worldclim/` (or a
 `worldclim` folder next to the models folder).
 
@@ -63,7 +66,8 @@ The Oregon tree list and climate that ship with the FINN package sources
 (`FINN/data-raw/`, commit 15922a1, 2026-06-24), written by the FINN-fia pipeline
 (`scripts/03_attach_environment.R`, `07_prepare_finn_inputs.R`, interval mode) from the
 FIADB dump of section 1 and the WorldClim rasters of section 2. Derived from
-public-domain FIA data and CC BY-SA WorldClim values; distributed with FINN under GPL-3.
+public-domain FIA data and WorldClim values extracted at the plot locations (free for
+academic and other non-commercial use); distributed with FINN under GPL-3.
 Copied 2026-11-09 to `raw/oregon-finn-data-raw/`.
 
 | file | sha256 |
@@ -88,5 +92,6 @@ factor of the FINN-fia pipeline (0.404686) is kept in `conus/08`; with the exact
 FIA plot data are public domain; the FIADB coordinates are already perturbed by the
 Forest Service, and the FINN tables carry no personal data. The example sites in
 `inst/extdata` are six holdout plots per variant (environment and initial tree list)
-and may be redistributed. WorldClim-derived values require attribution (Fick & Hijmans
-2017, CC BY-SA 4.0).
+and may be redistributed. Climate normals: WorldClim 2.1 (Fick & Hijmans 2017,
+doi:10.1002/joc.5086), free for academic and other non-commercial use; the rasters are
+not redistributed, only values extracted at the plot locations are included.
