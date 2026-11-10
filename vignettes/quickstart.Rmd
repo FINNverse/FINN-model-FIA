@@ -35,13 +35,19 @@ The chunks are not evaluated when the package is built (set the environment vari
 `FINNMODELFIA_RUN_VIGNETTE=1` to run them): loading a model downloads the released
 parameters once and needs a torch backend.
 
+```{r install, eval = FALSE}
+remotes::install_github("FINNverse/FINN@0848b60")           # FINN 0.2.0, the version the models were fitted with
+remotes::install_github("FINNverse/FINN-model-FIA@v0.1.0")
+```
+
 ## Load a model
 
 `load_model()` downloads the parameter list of the release this package version belongs
 to (cached afterwards), checks its sha256 and rebuilds the model with the installed FINN.
 Threads and batch size are pinned to the values the models were fitted and validated
-with: one torch thread, 250 sites per simulation batch (the stochastic draws depend on
-the batching, so a different `batchsize` gives a different realisation).
+with: one torch thread (`torch_set_num_threads(1L)`) and an explicit `batchsize` of 250
+sites per simulation batch. A different batchsize changes the random draws but not the
+model.
 
 ```{r load}
 library(FINNmodelFIA)

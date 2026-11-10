@@ -1,4 +1,7 @@
 ^calibration$
+^hpc$
+^logs$
 ^MODEL_REPO_CONVENTIONS\.md$
+^RELEASE_v0\.1\.0\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$
