@@ -118,6 +118,19 @@ predict_set <- function(d) {
 M <- rbind(cbind(set = "test", predict_set(test)), cbind(set = "holdout", predict_set(hold)))
 M[, set := factor(set, levels = c("test", "holdout"))]
 M[, mort_m := pmin(pmax(mort_m, 0), 1)]
+
+## ---- 1b. persistence baseline: the first inventory carried forward ---------
+## FINN forecasts from that same inventory, so for the state variables what
+## counts is what it adds beyond "nothing changes".
+init_state <- function(d) {
+  i <- d$init[trees > 0]
+  i[, .(ba_p = sum(pi * (dbh / 200)^2 * trees) / PARAMS$n_patches, trees_p = sum(trees) / PARAMS$n_patches,
+        dbh_p = weighted.mean(dbh, trees)), by = .(siteID, species)]
+}
+P0 <- rbind(cbind(set = "test", init_state(test)), cbind(set = "holdout", init_state(hold)))
+P0[, set := factor(set, levels = levels(M$set))]
+M <- merge(M, P0, by = c("set", "siteID", "species"), all.x = TRUE)
+M[is.na(ba_p), ba_p := 0]; M[is.na(trees_p), trees_p := 0]
 fwrite(M, file.path(VAL, "predictions.csv"))
 
 ## ---- 2. metrics --------------------------------------------------------------
@@ -136,12 +149,27 @@ by_species <- rbindlist(lapply(levels(M$set), function(s) rbindlist(lapply(vars,
   d <- M[set == s][eval(v[[2]])]
   d[, cbind(set = s, level = "species", variable = v[[1]], metric(get(v[[3]]), get(v[[4]]))), by = .(species = species_name)]
 }))))
-tot <- M[, .(ba = sum(ba), ba_m = sum(ba_m), trees = sum(trees), trees_m = sum(trees_m), reg = sum(reg), reg_m = sum(reg_m)),
-         by = .(set, siteID, year)]
+tot <- M[, .(ba = sum(ba), ba_m = sum(ba_m), ba_p = sum(ba_p), trees = sum(trees), trees_m = sum(trees_m), trees_p = sum(trees_p),
+             reg = sum(reg), reg_m = sum(reg_m)), by = .(set, siteID, year)]
 total <- rbindlist(lapply(levels(M$set), function(s) rbind(
   cbind(set = s, level = "total", variable = "basal area (m2 per patch)", species = "all (stand total)", metric(tot[set == s]$ba, tot[set == s]$ba_m)),
   cbind(set = s, level = "total", variable = "trees (per patch)",         species = "all (stand total)", metric(tot[set == s]$trees, tot[set == s]$trees_m)),
   cbind(set = s, level = "total", variable = "recruitment (per ha per step)", species = "all (stand total)", metric(tot[set == s]$reg, tot[set == s]$reg_m)))))
+## the same scores for the persistence baseline (state variables only)
+pvars <- list(list("dbh (cm, species mean)", quote(trees > 0), "dbh", "dbh_p"),
+              list("basal area (m2 per patch)", quote(rep(TRUE, .N)), "ba", "ba_p"),
+              list("trees (per patch)", quote(rep(TRUE, .N)), "trees", "trees_p"))
+persist <- rbindlist(lapply(levels(M$set), function(s) rbindlist(lapply(pvars, function(v) {
+  d <- M[set == s][eval(v[[2]])]
+  cbind(set = s, level = "persistence", variable = v[[1]], species = "all", metric(d[[v[[3]]]], d[[v[[4]]]]))
+}))))
+persist_sp <- rbindlist(lapply(levels(M$set), function(s) rbindlist(lapply(pvars, function(v) {
+  d <- M[set == s][eval(v[[2]])]
+  d[, cbind(set = s, level = "persistence_species", variable = v[[1]], metric(get(v[[3]]), get(v[[4]]))), by = .(species = species_name)]
+}))))
+persist_total <- rbindlist(lapply(levels(M$set), function(s) rbind(
+  cbind(set = s, level = "persistence_total", variable = "basal area (m2 per patch)", species = "all (stand total)", metric(tot[set == s]$ba, tot[set == s]$ba_p)),
+  cbind(set = s, level = "persistence_total", variable = "trees (per patch)", species = "all (stand total)", metric(tot[set == s]$trees, tot[set == s]$trees_p)))))
 auc_tab <- M[n_at_risk > 0, .(n_trees_at_risk = sum(n_at_risk), n_died = sum(n_died),
                               auc = weighted_auc(mort_m, n_died, n_at_risk - n_died)), by = set]
 auc_species <- M[n_at_risk > 0, .(n_at_risk = sum(n_at_risk), n_died = sum(n_died),
@@ -149,12 +177,19 @@ auc_species <- M[n_at_risk > 0, .(n_at_risk = sum(n_at_risk), n_died = sum(n_die
 pooled[variable == "mortality (fraction died per step)", auc := auc_tab$auc[match(set, auc_tab$set)]]
 by_species[variable == "mortality (fraction died per step)",
            auc := auc_species$auc[match(paste(set, species), paste(auc_species$set, auc_species$species))]]
-metrics <- rbind(pooled, total, by_species, fill = TRUE)[, variant := VARIANT]
+metrics <- rbind(pooled, total, by_species, persist, persist_total, persist_sp, fill = TRUE)[, variant := VARIANT]
 setcolorder(metrics, c("variant", "set", "level", "variable", "species"))
 fwrite(metrics, file.path(CAL_DIR, "metrics.csv"))
 fwrite(auc_tab, file.path(VAL, "mortality_auc.csv"))
 print(pooled[, .(set, variable, n, rmse, r2, r, bias, obs_mean, auc)], digits = 3)
 print(total[, .(set, variable, n, rmse, r2, r)], digits = 3)
+## model against persistence, the comparison that matters for the state variables
+vs_persist <- merge(rbind(pooled[level == "pooled"], total, fill = TRUE)[variable %in% sapply(pvars, `[[`, 1), .(set, level, variable, r2_model = r2, rmse_model = rmse, spearman_model = spearman)],
+                    rbind(persist, persist_total)[, .(set, level = fifelse(level == "persistence", "pooled", "total"), variable, r2_persistence = r2, rmse_persistence = rmse, spearman_persistence = spearman)],
+                    by = c("set", "level", "variable"))
+vs_persist[, level := fifelse(level == "pooled", "species x plot", "stand total")]
+fwrite(vs_persist, file.path(VAL, "model_vs_persistence.csv"))
+print(vs_persist, digits = 3)
 
 ## ---- 3. figures --------------------------------------------------------------
 ## loss per response
@@ -274,6 +309,7 @@ sp_state <- dcast(by_species[variable %in% c("basal area (m2 per patch)", "trees
 sp_state <- merge(sp_state, by_species[variable == "mortality (fraction died per step)" & set == "holdout", .(species, mort_auc = auc)], by = "species", all.x = TRUE)
 sp_state <- merge(sp_state, by_species[variable == "growth (rel. dbh increment per step)" & set == "holdout", .(species, growth_r2 = r2)], by = "species", all.x = TRUE)
 sp_state <- merge(sp_state, by_species[variable == "recruitment (per ha per step)" & set == "holdout", .(species, reg_spearman = spearman)], by = "species", all.x = TRUE)
+sp_state <- merge(sp_state, persist_sp[variable == "basal area (m2 per patch)" & set == "holdout", .(species, r2_ba_persistence = r2)], by = "species", all.x = TRUE)
 verdict_ok <- all(is.finite(equil$ba_last)) && all(equil$ba_last > 5 & equil$ba_last < 150) && all(abs(equil$drift_pct) < 10)
 writeLines(c(
   sprintf("# Validation report: FINN-model-FIA variant `%s`", VARIANT), "",
@@ -289,6 +325,9 @@ writeLines(c(
   md_table(pooled[, .(set, variable, n, rmse, r2, r, bias, obs_mean, auc)]), "",
   "## Stand totals (summed over species per plot and step)", "",
   md_table(total[, .(set, variable, n, rmse, r2, r, bias, obs_mean)]), "",
+  "## Model against persistence", "",
+  "Persistence = the first inventory carried forward unchanged. FINN forecasts from that same inventory, so for the state variables what counts is what it adds beyond \"nothing changes\".", "",
+  md_table(vs_persist), "",
   "## Mortality AUC (trees at risk weighted)", "", md_table(auc_tab), "",
   "## Holdout, per species", "",
   "R2, RMSE and Spearman of basal area and stem number per patch, the per-tree mortality AUC, growth R2 and recruitment Spearman, each within the species.", "",

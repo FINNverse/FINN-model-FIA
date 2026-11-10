@@ -1,0 +1,3 @@
+set,n_trees_at_risk,n_died,auc
+test,24627,1721,0.601033146457698
+holdout,5331,502,0.596836716088638

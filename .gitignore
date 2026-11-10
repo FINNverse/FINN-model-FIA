@@ -5,3 +5,7 @@
 .DS_Store
 data/
 outputs/
+calibration/*/validation/predictions.csv
+calibration/*/validation/tree_predictions.csv
+calibration/*/validation/parameter_trajectories.csv
+calibration/*/validation/bare_ground_succession.csv
