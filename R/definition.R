@@ -27,6 +27,43 @@ variant_definitions = function() {
       patch_size   = 0.01681,
       step_years   = 10L
     ),
+    ## v0.2 Oregon (data oregon-10yr-v2): 27 species, no `other`; the recruitment cap K
+    ## is fixed per species (not trained) and theta is frozen, both carried in the
+    ## parameter list, so the structure is that of v0.1 without `other`
+    oregon_v02 = list(
+      n_species    = 27L,
+      covariates   = c("temp", "prec"),
+      formula      = ~ temp + prec,
+      hidden       = NULL,
+      dropout      = 0,
+      regeneration = "saturation",
+      reg_K_init   = 500,
+      adult_x_init = NULL,
+      adult_A_init = NULL,
+      reg_floor    = 0.01,
+      recruits_dbh = 12.9,
+      patches      = 4L,
+      patch_size   = 0.01681,
+      step_years   = 10L
+    ),
+    ## v0.2 conterminous US (data conus-annual-v2): the v0.1 structure; K fixed and
+    ## theta frozen in the fit, both carried in the parameter list
+    conus_v02 = list(
+      n_species    = 20L,
+      covariates   = c("tavg_c", "prec_mm", "cwd_z"),
+      formula      = ~ tavg_c + prec_mm + cwd_z,
+      hidden       = c(20L, 20L),
+      dropout      = 0.1,
+      regeneration = "adult",
+      reg_K_init   = 50,
+      adult_x_init = 20,
+      adult_A_init = 15,
+      reg_floor    = 1e-3,
+      recruits_dbh = 12.9,
+      patches      = 4L,
+      patch_size   = 0.01681,
+      step_years   = 1L
+    ),
     ## conterminous US, annual time step, 20 species, climate networks
     conus = list(
       n_species    = 20L,
@@ -113,6 +150,11 @@ build_model = function(variant, parameters, env_scaling = NULL) {
 
   have = model$parameters
   missing = setdiff(names(have), names(parameters)); extra = setdiff(names(parameters), names(have))
+  ## a value fixed in the fit (e.g. the v0.2 recruitment cap `reg_logK`, declared with
+  ## trainable = FALSE) is a buffer of the model, not a parameter: it is carried in the
+  ## list under its field name and copied into that buffer
+  buffers = extra[vapply(extra, function(nm) inherits(model[[nm]], "torch_tensor"), logical(1))]
+  extra = setdiff(extra, buffers)
   if (length(missing) || length(extra))
     stop("parameter list does not match the model: missing ", paste(missing, collapse = ", "),
          "; unexpected ", paste(extra, collapse = ", "), call. = FALSE)
@@ -122,6 +164,12 @@ build_model = function(variant, parameters, env_scaling = NULL) {
         stop("parameter '", nm, "' has shape ", paste(parameters[[nm]]$shape, collapse = "x"),
              " but the model expects ", paste(have[[nm]]$shape, collapse = "x"), call. = FALSE)
       have[[nm]]$copy_(parameters[[nm]]$to(dtype = have[[nm]]$dtype))
+    }
+    for (nm in buffers) {
+      if (!identical(as.integer(model[[nm]]$shape), as.integer(parameters[[nm]]$shape)))
+        stop("buffer '", nm, "' has shape ", paste(parameters[[nm]]$shape, collapse = "x"),
+             " but the model expects ", paste(model[[nm]]$shape, collapse = "x"), call. = FALSE)
+      model[[nm]]$copy_(parameters[[nm]]$to(dtype = model[[nm]]$dtype))
     }
   })
   model$eval()

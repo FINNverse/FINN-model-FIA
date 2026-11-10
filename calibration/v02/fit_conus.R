@@ -119,6 +119,7 @@ fit_minutes <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 
 ## ---- 4. save ---------------------------------------------------------------
 parameters <- lapply(model$parameters, function(p) p$detach()$cpu()$clone())
+parameters$reg_logK <- model$reg_logK$detach()$cpu()$clone()      # the fixed cap is a buffer, not a parameter; the list carries it
 torch_save(parameters, file.path(FIT_DIR, "parameters.pt"))
 torch_save(model, file.path(FIT_DIR, "model.pt"))
 fwrite(loss_hist, file.path(FIT_DIR, "loss_history.csv")); fwrite(loss_hist, file.path(CAL_DIR, "loss_history.csv"))
